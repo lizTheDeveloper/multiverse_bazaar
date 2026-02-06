@@ -125,7 +125,7 @@ export function ProjectDetail() {
               {isCreator && (
                 <>
                   <Link to={`/projects/${project.id}/edit`}>
-                    <Button variant="outline">Edit</Button>
+                    <Button variant="secondary">Edit</Button>
                   </Link>
                   <Button
                     variant="danger"
@@ -215,7 +215,7 @@ export function ProjectDetail() {
               >
                 <Avatar
                   src={collab.user.avatar_url}
-                  name={collab.user.name}
+                  fallback={collab.user.name}
                   size="md"
                 />
                 <div className="flex-1">

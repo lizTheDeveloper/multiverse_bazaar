@@ -4,7 +4,7 @@
  */
 
 import { Context, Next } from 'hono';
-import { isOk } from '@multiverse-bazaar/shared/types/result';
+import { isOk } from '@multiverse-bazaar/shared';
 import { AuthService } from './service.js';
 import { AuthenticatedUser } from './types.js';
 
@@ -33,8 +33,12 @@ export interface AuthVariables {
  * ```
  */
 export function authMiddleware(authService: AuthService) {
-  return async (c: Context, next: Next) => {
+  return async (c: Context, next: Next): Promise<Response | void> => {
     const logger = c.get('logger');
+
+    if (!logger) {
+      throw new Error('Logger not available in context');
+    }
 
     // Extract Authorization header
     const authHeader = c.req.header('Authorization');
@@ -54,8 +58,8 @@ export function authMiddleware(authService: AuthService) {
 
     // Check for Bearer token format
     const parts = authHeader.split(' ');
-    if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      logger.warn({ authHeader }, 'Invalid Authorization header format');
+    if (parts.length !== 2 || parts[0] !== 'Bearer' || !parts[1]) {
+      logger.warn('Invalid Authorization header format', { authHeader });
       return c.json(
         {
           error: {
@@ -73,7 +77,8 @@ export function authMiddleware(authService: AuthService) {
     const result = authService.validateToken(token);
 
     if (!isOk(result)) {
-      logger.warn({ error: result.error.message }, 'Token validation failed');
+      const errorMsg = result.error.message || 'Unknown error';
+      logger.warn('Token validation failed', { error: errorMsg });
       return c.json(
         {
           error: {
@@ -91,11 +96,12 @@ export function authMiddleware(authService: AuthService) {
     const user: AuthenticatedUser = {
       id: payload.userId,
       email: payload.email,
+      name: null, // Name not included in token payload
     };
 
     c.set('user', user);
 
-    logger.info({ userId: user.id }, 'Request authenticated');
+    logger.info('Request authenticated', { userId: user.id });
 
     await next();
   };
@@ -122,8 +128,12 @@ export function authMiddleware(authService: AuthService) {
  * ```
  */
 export function optionalAuthMiddleware(authService: AuthService) {
-  return async (c: Context, next: Next) => {
+  return async (c: Context, next: Next): Promise<void> => {
     const logger = c.get('logger');
+
+    if (!logger) {
+      throw new Error('Logger not available in context');
+    }
 
     // Extract Authorization header
     const authHeader = c.req.header('Authorization');
@@ -136,8 +146,8 @@ export function optionalAuthMiddleware(authService: AuthService) {
 
     // Check for Bearer token format
     const parts = authHeader.split(' ');
-    if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      logger.debug({ authHeader }, 'Invalid Authorization header format in optional auth');
+    if (parts.length !== 2 || parts[0] !== 'Bearer' || !parts[1]) {
+      logger.debug('Invalid Authorization header format in optional auth', { authHeader });
       // Invalid format, continue without user
       await next();
       return;
@@ -155,13 +165,15 @@ export function optionalAuthMiddleware(authService: AuthService) {
       const user: AuthenticatedUser = {
         id: payload.userId,
         email: payload.email,
+        name: null, // Name not included in token payload
       };
 
       c.set('user', user);
 
-      logger.debug({ userId: user.id }, 'Optional auth: Request authenticated');
+      logger.debug('Optional auth: Request authenticated', { userId: user.id });
     } else {
-      logger.debug({ error: result.error.message }, 'Optional auth: Token validation failed');
+      const errorMsg = result.error.message || 'Unknown error';
+      logger.debug('Optional auth: Token validation failed', { error: errorMsg });
       // Invalid token, continue without user
     }
 

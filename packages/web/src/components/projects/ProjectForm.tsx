@@ -136,10 +136,15 @@ export function ProjectForm({ project, onSubmit, isSubmitting }: ProjectFormProp
         <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
           Status *
         </label>
-        <Select id="status" {...register('status')} error={errors.status?.message}>
-          <option value="building">Building</option>
-          <option value="launched">Launched</option>
-        </Select>
+        <Select
+          id="status"
+          {...register('status')}
+          error={errors.status?.message}
+          options={[
+            { value: 'building', label: 'Building' },
+            { value: 'launched', label: 'Launched' },
+          ]}
+        />
       </div>
 
       {/* Image Upload */}
@@ -158,7 +163,7 @@ export function ProjectForm({ project, onSubmit, isSubmitting }: ProjectFormProp
             </div>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={handleRemoveImage}
             >

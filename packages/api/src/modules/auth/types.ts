@@ -9,9 +9,9 @@
 export interface UserProfile {
   id: string;
   email: string;
-  name?: string;
-  avatarUrl?: string;
-  bio?: string;
+  name: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
   karma: number;
   createdAt: Date;
 }
@@ -63,5 +63,5 @@ export interface TokenPayload {
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  name?: string;
+  name: string | null;
 }

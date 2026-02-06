@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { User } from '../../types';
+import type { User } from '../../types';
 import { useUpdateProfile, useUploadAvatar } from '../../hooks/useUser';
 import { cn } from '../../lib/utils';
 

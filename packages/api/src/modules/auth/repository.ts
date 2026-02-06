@@ -4,8 +4,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { Result, Ok, Err } from '@multiverse-bazaar/shared/types/result';
-import { NotFoundError, InternalError } from '@multiverse-bazaar/shared/types/errors';
+import { Result, Ok, Err, NotFoundError, InternalError } from '@multiverse-bazaar/shared';
 import { UserProfile } from './types.js';
 
 /**

@@ -5,14 +5,17 @@
 
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { Result, Ok, Err, isOk } from '@multiverse-bazaar/shared/types/result';
+import crypto from 'crypto';
 import {
+  Result,
+  Ok,
+  Err,
+  isOk,
   BaseError,
-  NotFoundError,
   UnauthorizedError,
   RateLimitError,
   InternalError,
-} from '@multiverse-bazaar/shared/types/errors';
+} from '@multiverse-bazaar/shared';
 import { AuthRepository } from './repository.js';
 import { LoginResponse, RefreshResponse, TokenPayload, UserProfile } from './types.js';
 import { Config } from '../../infra/config.js';
@@ -289,7 +292,6 @@ export class AuthService {
    */
   private generateRefreshToken(): string {
     // Generate 32 bytes of random data and convert to hex
-    const crypto = require('crypto');
     return crypto.randomBytes(32).toString('hex');
   }
 
@@ -328,11 +330,15 @@ export class AuthService {
    * @param expiresIn - Expiration string
    * @returns Expiration in seconds
    */
-  private parseExpiresIn(expiresIn: string): number {
+  private parseExpiresIn(expiresIn: string | undefined): number {
+    if (!expiresIn) {
+      return ACCESS_TOKEN_EXPIRY_SECONDS;
+    }
+
     const match = expiresIn.match(/^(\d+)([smhd])?$/);
 
-    if (!match) {
-      this.logger.warn({ expiresIn }, 'Invalid expiresIn format, using default');
+    if (!match || !match[1]) {
+      this.logger.warn('Invalid expiresIn format, using default', { expiresIn });
       return ACCESS_TOKEN_EXPIRY_SECONDS;
     }
 

@@ -42,21 +42,21 @@ export function ProjectFilters() {
           <span className="text-sm font-medium text-gray-700">Status:</span>
           <div className="flex gap-2">
             <Button
-              variant={!currentStatus ? 'primary' : 'outline'}
+              variant={!currentStatus ? 'primary' : 'secondary'}
               size="sm"
               onClick={() => handleStatusChange(null)}
             >
               All
             </Button>
             <Button
-              variant={currentStatus === 'building' ? 'primary' : 'outline'}
+              variant={currentStatus === 'building' ? 'primary' : 'secondary'}
               size="sm"
               onClick={() => handleStatusChange('building')}
             >
               Building
             </Button>
             <Button
-              variant={currentStatus === 'launched' ? 'primary' : 'outline'}
+              variant={currentStatus === 'launched' ? 'primary' : 'secondary'}
               size="sm"
               onClick={() => handleStatusChange('launched')}
             >
@@ -68,7 +68,7 @@ export function ProjectFilters() {
         {/* Featured Filter */}
         <div className="flex items-center gap-2">
           <Button
-            variant={currentFeatured === 'true' ? 'primary' : 'outline'}
+            variant={currentFeatured === 'true' ? 'primary' : 'secondary'}
             size="sm"
             onClick={handleFeaturedToggle}
           >
@@ -78,7 +78,7 @@ export function ProjectFilters() {
 
         {/* Clear Filters */}
         {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+          <Button variant="secondary" size="sm" onClick={handleClearFilters}>
             Clear Filters
           </Button>
         )}

@@ -1,4 +1,4 @@
-import { User } from '../../types';
+import type { User } from '../../types';
 import { formatDate } from '../../lib/utils';
 
 interface ProfileCardProps {

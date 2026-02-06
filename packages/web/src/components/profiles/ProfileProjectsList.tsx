@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Project, CollaboratorRole } from '../../types';
+import type { Project, CollaboratorRole } from '../../types';
 import { cn } from '../../lib/utils';
 
 interface ProfileProjectsListProps {
