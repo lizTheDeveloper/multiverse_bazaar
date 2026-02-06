@@ -41,11 +41,11 @@ export function createProjectRoutes(
 
   /**
    * GET /projects
-   * List projects with pagination and filters
+   * List projects with cursor-based pagination and filters
    * Public endpoint - optional authentication for upvote status
    *
    * Query parameters:
-   * - page: Page number (default: 1)
+   * - cursor: Cursor for pagination (base64-encoded, optional)
    * - limit: Items per page (default: 20, max: 100)
    * - status: Filter by project status (BUILDING | LAUNCHED)
    * - featured: Filter by featured status (true | false)
@@ -54,10 +54,8 @@ export function createProjectRoutes(
    * Response:
    * {
    *   "projects": [...],
-   *   "total": 42,
-   *   "page": 1,
-   *   "limit": 20,
-   *   "totalPages": 3
+   *   "nextCursor": "abc123" | null,
+   *   "hasMore": true | false
    * }
    */
   router.get('/', optionalAuthMiddleware(authService), async (c) => {
@@ -109,7 +107,7 @@ export function createProjectRoutes(
     }
 
     logger.info(
-      { query, total: result.value.total, page: result.value.page },
+      { query, hasMore: result.value.hasMore, count: result.value.projects.length },
       'Projects listed successfully'
     );
 

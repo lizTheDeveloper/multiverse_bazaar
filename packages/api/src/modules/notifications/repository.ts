@@ -13,6 +13,7 @@ import {
   PushToken,
   Platform,
 } from './types.js';
+import { decodeCursor } from '../../shared/pagination.js';
 
 /**
  * Repository for notification-related database operations
@@ -99,36 +100,60 @@ export class NotificationRepository {
   }
 
   /**
-   * Find notifications for a user with pagination
+   * Find notifications for a user with cursor-based pagination
    * @param userId - User ID
    * @param query - Query parameters for pagination and filtering
-   * @returns Result with array of notifications or InternalError
+   * @returns Result with array of notifications (limit + 1 for hasMore detection) or InternalError
    */
   async findByUserId(
     userId: string,
     query: NotificationListQuery
-  ): Promise<Result<{ notifications: Notification[]; total: number }, InternalError>> {
+  ): Promise<Result<{ notifications: Notification[] }, InternalError>> {
     try {
-      const page = query.page || 1;
       const limit = query.limit || 20;
-      const skip = (page - 1) * limit;
 
-      const where = {
+      const where: any = {
         userId,
         ...(query.unreadOnly ? { read: false } : {}),
       };
 
-      const [notifications, total] = await Promise.all([
-        this.db.notification.findMany({
-          where,
-          orderBy: {
-            createdAt: 'desc',
-          },
-          skip,
-          take: limit,
-        }),
-        this.db.notification.count({ where }),
-      ]);
+      // Add cursor-based filtering if cursor is provided
+      if (query.cursor) {
+        try {
+          const cursorData = decodeCursor(query.cursor);
+          // Use compound cursor: (createdAt, id) < (cursorDate, cursorId)
+          where.OR = [
+            {
+              createdAt: {
+                lt: cursorData.createdAt,
+              },
+            },
+            {
+              createdAt: cursorData.createdAt,
+              id: {
+                lt: cursorData.id,
+              },
+            },
+          ];
+        } catch (error) {
+          return Err(
+            new InternalError('Invalid cursor', {
+              cursor: query.cursor,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
+      }
+
+      // Fetch limit + 1 to determine if there are more results
+      const notifications = await this.db.notification.findMany({
+        where,
+        orderBy: [
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
+        take: limit + 1,
+      });
 
       const mapped: Notification[] = notifications.map((n) => ({
         id: n.id,
@@ -141,7 +166,7 @@ export class NotificationRepository {
         createdAt: n.createdAt,
       }));
 
-      return Ok({ notifications: mapped, total });
+      return Ok({ notifications: mapped });
     } catch (error) {
       return Err(
         new InternalError('Failed to find notifications for user', {

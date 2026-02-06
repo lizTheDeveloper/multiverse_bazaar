@@ -59,11 +59,7 @@ export const updateProjectSchema = z.object({
  * Schema for project list query parameters
  */
 export const projectListQuerySchema = z.object({
-  page: z
-    .string()
-    .optional()
-    .transform((val) => (val ? parseInt(val, 10) : 1))
-    .pipe(z.number().int().positive().default(1)),
+  cursor: z.string().optional(),
   limit: z
     .string()
     .optional()

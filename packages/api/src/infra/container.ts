@@ -319,7 +319,8 @@ export function setupContainer(): Container {
       const { UserService } = require('../modules/users/service.js');
       const userRepository = c.resolve('userRepository');
       const logger = c.resolve<Logger>('logger');
-      return new UserService(userRepository, logger);
+      const uploadService = c.resolve('uploadService');
+      return new UserService(userRepository, logger, uploadService);
     },
     'singleton'
   );
@@ -423,8 +424,9 @@ export function setupContainer(): Container {
       const { UploadService } = require('../modules/uploads/service.js');
       const uploadRepository = c.resolve('uploadRepository');
       const config = c.resolve<Config>('config');
-      const logger = c.resolve<Logger>('logger');
-      return new UploadService(uploadRepository, config, logger);
+      // Construct base URL - in production this should come from environment
+      const baseUrl = process.env.API_BASE_URL || `http://localhost:${config.port}`;
+      return new UploadService(uploadRepository, baseUrl);
     },
     'singleton'
   );

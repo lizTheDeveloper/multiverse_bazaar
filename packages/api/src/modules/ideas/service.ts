@@ -12,6 +12,7 @@ import {
   ForbiddenError,
   InternalError,
   ConflictError,
+  NotFoundError,
 } from '@multiverse-bazaar/shared';
 import { IdeaStatus, ProjectStatus, CollaboratorRole } from '@prisma/client';
 import { IdeaRepository } from './repository.js';
@@ -23,8 +24,10 @@ import {
   IdeaListQuery,
   IdeaListResponse,
   GraduateIdeaRequest,
+  IdeaUpvoteResponse,
 } from './types.js';
 import { Logger } from '../../infra/logger.js';
+import { createPaginatedResponse } from '../../shared/pagination.js';
 
 /**
  * Service for idea operations
@@ -293,19 +296,18 @@ export class IdeaService {
   }
 
   /**
-   * List ideas with pagination and filters
+   * List ideas with cursor-based pagination and filters
    *
    * @param query - Query parameters for filtering and pagination
-   * @returns Result with paginated idea list or BaseError
+   * @returns Result with cursor-based paginated idea list or BaseError
    */
   async list(query: IdeaListQuery): Promise<Result<IdeaListResponse, BaseError>> {
     try {
       this.logger.info({ query }, 'Listing ideas');
 
-      const page = query.page || 1;
       const limit = query.limit || 20;
 
-      // Get ideas from repository
+      // Get ideas from repository (fetches limit + 1)
       const listResult = await this.repository.list(query);
 
       if (!isOk(listResult)) {
@@ -313,18 +315,27 @@ export class IdeaService {
         return Err(listResult.error);
       }
 
-      const { ideas, total } = listResult.value;
+      const { ideas } = listResult.value;
 
-      const totalPages = Math.ceil(total / limit);
+      // Create paginated response with cursor
+      const paginatedResponse = createPaginatedResponse(
+        ideas,
+        limit,
+        (idea) => ({
+          id: idea.id,
+          createdAt: idea.createdAt,
+        })
+      );
 
-      this.logger.info({ total, page, limit, totalPages }, 'Ideas listed successfully');
+      this.logger.info(
+        { count: paginatedResponse.data.length, hasMore: paginatedResponse.hasMore },
+        'Ideas listed successfully'
+      );
 
       return Ok({
-        ideas,
-        total,
-        page,
-        limit,
-        totalPages,
+        ideas: paginatedResponse.data,
+        nextCursor: paginatedResponse.nextCursor,
+        hasMore: paginatedResponse.hasMore,
       });
     } catch (error) {
       this.logger.error({ error, query }, 'Unexpected error listing ideas');
@@ -554,6 +565,116 @@ export class IdeaService {
       this.logger.error({ error, userId, ideaId }, 'Unexpected error graduating idea');
       return Err(
         new InternalError('An unexpected error occurred while graduating idea', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
+  }
+
+  /**
+   * Add an upvote to an idea
+   * - Checks if idea exists
+   * - Checks if user has already upvoted (returns conflict if exists)
+   * - Creates upvote
+   * - Returns new upvote count
+   *
+   * @param userId - User ID adding the upvote
+   * @param ideaId - Idea ID being upvoted
+   * @returns Result with IdeaUpvoteResponse or BaseError
+   */
+  async upvote(userId: string, ideaId: string): Promise<Result<IdeaUpvoteResponse, BaseError>> {
+    try {
+      // Check if idea exists
+      const ideaResult = await this.repository.findById(ideaId);
+      if (!isOk(ideaResult)) {
+        this.logger.warn({ userId, ideaId }, 'Attempted to upvote non-existent idea');
+        return Err(new NotFoundError('Idea'));
+      }
+
+      // Check if user has already upvoted
+      const hasUpvotedResult = await this.repository.hasUpvoted(userId, ideaId);
+      if (!isOk(hasUpvotedResult)) {
+        return Err(hasUpvotedResult.error);
+      }
+
+      if (hasUpvotedResult.value) {
+        this.logger.info({ userId, ideaId }, 'User attempted to upvote already upvoted idea');
+        return Err(new ConflictError('You have already upvoted this idea'));
+      }
+
+      // Create upvote
+      const createResult = await this.repository.createUpvote(userId, ideaId);
+      if (!isOk(createResult)) {
+        return Err(createResult.error);
+      }
+
+      // Get updated count
+      const countResult = await this.repository.getUpvoteCount(ideaId);
+      if (!isOk(countResult)) {
+        return Err(countResult.error);
+      }
+
+      this.logger.info({ userId, ideaId, count: countResult.value }, 'Idea upvote created successfully');
+
+      return Ok({
+        upvoted: true,
+        count: countResult.value,
+      });
+    } catch (error) {
+      this.logger.error({ error, userId, ideaId }, 'Unexpected error during idea upvote');
+      return Err(
+        new InternalError('An unexpected error occurred while upvoting idea', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
+  }
+
+  /**
+   * Remove an upvote from an idea
+   * - Checks if upvote exists
+   * - Deletes upvote
+   * - Returns new upvote count
+   *
+   * @param userId - User ID removing the upvote
+   * @param ideaId - Idea ID being un-upvoted
+   * @returns Result with IdeaUpvoteResponse or BaseError
+   */
+  async removeUpvote(userId: string, ideaId: string): Promise<Result<IdeaUpvoteResponse, BaseError>> {
+    try {
+      // Check if upvote exists
+      const hasUpvotedResult = await this.repository.hasUpvoted(userId, ideaId);
+      if (!isOk(hasUpvotedResult)) {
+        return Err(hasUpvotedResult.error);
+      }
+
+      if (!hasUpvotedResult.value) {
+        this.logger.warn({ userId, ideaId }, 'User attempted to remove non-existent upvote');
+        return Err(new NotFoundError('Upvote'));
+      }
+
+      // Delete upvote
+      const deleteResult = await this.repository.deleteUpvote(userId, ideaId);
+      if (!isOk(deleteResult)) {
+        return Err(deleteResult.error);
+      }
+
+      // Get updated count
+      const countResult = await this.repository.getUpvoteCount(ideaId);
+      if (!isOk(countResult)) {
+        return Err(countResult.error);
+      }
+
+      this.logger.info({ userId, ideaId, count: countResult.value }, 'Idea upvote removed successfully');
+
+      return Ok({
+        upvoted: false,
+        count: countResult.value,
+      });
+    } catch (error) {
+      this.logger.error({ error, userId, ideaId }, 'Unexpected error during idea upvote removal');
+      return Err(
+        new InternalError('An unexpected error occurred while removing idea upvote', {
           error: error instanceof Error ? error.message : String(error),
         })
       );

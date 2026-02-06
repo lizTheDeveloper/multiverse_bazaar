@@ -12,6 +12,7 @@ import {
   expressInterestSchema,
   graduateIdeaSchema,
   ideaListQuerySchema,
+  ideaIdParamSchema,
 } from './schemas.js';
 import { authMiddleware, optionalAuthMiddleware } from '../auth/middleware.js';
 import { AuthService } from '../auth/service.js';
@@ -47,11 +48,11 @@ export function createIdeaRoutes(
 
   /**
    * GET /ideas
-   * List ideas with pagination and filters
+   * List ideas with cursor-based pagination and filters
    * Public endpoint - no authentication required
    *
    * Query parameters:
-   * - page: Page number (default: 1)
+   * - cursor: Cursor for pagination (base64-encoded, optional)
    * - limit: Items per page (default: 20, max: 100)
    * - status: Filter by idea status (OPEN | CLOSED | GRADUATED)
    * - creatorId: Filter by creator user ID
@@ -59,10 +60,8 @@ export function createIdeaRoutes(
    * Response:
    * {
    *   "ideas": [...],
-   *   "total": 42,
-   *   "page": 1,
-   *   "limit": 20,
-   *   "totalPages": 3
+   *   "nextCursor": "abc123" | null,
+   *   "hasMore": true | false
    * }
    */
   router.get('/', async (c) => {
@@ -113,7 +112,7 @@ export function createIdeaRoutes(
     }
 
     logger.info(
-      { query, total: result.value.total, page: result.value.page },
+      { query, hasMore: result.value.hasMore, count: result.value.ideas.length },
       'Ideas listed successfully'
     );
 
@@ -625,6 +624,156 @@ export function createIdeaRoutes(
     }
 
     logger.info({ userId: user.id, ideaId }, 'Idea graduated successfully');
+
+    return c.json(result.value);
+  });
+
+  /**
+   * POST /ideas/:id/upvote
+   * Upvote an idea (requires authentication)
+   *
+   * Response:
+   * {
+   *   "upvoted": true,
+   *   "count": 42
+   * }
+   */
+  router.post('/:id/upvote', authMiddleware(authService), async (c) => {
+    const logger = c.get('logger');
+    const user = c.get('user');
+
+    if (!user) {
+      logger.error('No user in context despite auth middleware');
+      return c.json(
+        {
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required',
+          },
+        },
+        401
+      );
+    }
+
+    // Validate idea ID parameter
+    const paramValidation = ideaIdParamSchema.safeParse({ id: c.req.param('id') });
+
+    if (!paramValidation.success) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid idea ID',
+            fieldErrors: paramValidation.error.errors.map(err => ({
+              field: err.path.join('.'),
+              message: err.message,
+            })),
+          },
+        },
+        400
+      );
+    }
+
+    const { id: ideaId } = paramValidation.data;
+
+    logger.info({ userId: user.id, ideaId }, 'Idea upvote attempt');
+
+    const result = await ideaService.upvote(user.id, ideaId);
+
+    if (!isOk(result)) {
+      const error = result.error;
+      logger.warn({ userId: user.id, ideaId, error: error.message }, 'Idea upvote failed');
+
+      const statusCode = error.statusCode as 400 | 401 | 403 | 404 | 409 | 429 | 500;
+
+      return c.json(
+        {
+          error: {
+            code: error.code,
+            message: error.message,
+            ...(error.details && { details: error.details }),
+          },
+        },
+        statusCode
+      );
+    }
+
+    logger.info({ userId: user.id, ideaId }, 'Idea upvote successful');
+
+    return c.json(result.value);
+  });
+
+  /**
+   * DELETE /ideas/:id/upvote
+   * Remove upvote from an idea (requires authentication)
+   *
+   * Response:
+   * {
+   *   "upvoted": false,
+   *   "count": 41
+   * }
+   */
+  router.delete('/:id/upvote', authMiddleware(authService), async (c) => {
+    const logger = c.get('logger');
+    const user = c.get('user');
+
+    if (!user) {
+      logger.error('No user in context despite auth middleware');
+      return c.json(
+        {
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required',
+          },
+        },
+        401
+      );
+    }
+
+    // Validate idea ID parameter
+    const paramValidation = ideaIdParamSchema.safeParse({ id: c.req.param('id') });
+
+    if (!paramValidation.success) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid idea ID',
+            fieldErrors: paramValidation.error.errors.map(err => ({
+              field: err.path.join('.'),
+              message: err.message,
+            })),
+          },
+        },
+        400
+      );
+    }
+
+    const { id: ideaId } = paramValidation.data;
+
+    logger.info({ userId: user.id, ideaId }, 'Remove idea upvote attempt');
+
+    const result = await ideaService.removeUpvote(user.id, ideaId);
+
+    if (!isOk(result)) {
+      const error = result.error;
+      logger.warn({ userId: user.id, ideaId, error: error.message }, 'Remove idea upvote failed');
+
+      const statusCode = error.statusCode as 400 | 401 | 403 | 404 | 409 | 429 | 500;
+
+      return c.json(
+        {
+          error: {
+            code: error.code,
+            message: error.message,
+            ...(error.details && { details: error.details }),
+          },
+        },
+        statusCode
+      );
+    }
+
+    logger.info({ userId: user.id, ideaId }, 'Remove idea upvote successful');
 
     return c.json(result.value);
   });

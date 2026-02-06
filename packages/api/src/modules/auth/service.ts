@@ -46,16 +46,18 @@ export class AuthService {
   ) {}
 
   /**
-   * Authenticate a user by email and generate tokens
-   * Creates a new user if one doesn't exist (email-only auth)
+   * Authenticate a user by email and password
+   * Verifies password hash and generates tokens
    *
    * @param email - User's email address
+   * @param password - User's password (plain text, will be verified against hash)
    * @param ip - IP address of the request (for rate limiting)
    * @param userAgent - User agent string (for audit logging)
    * @returns Result with LoginResponse or BaseError
    */
   async login(
     email: string,
+    password: string,
     ip: string,
     userAgent?: string
   ): Promise<Result<LoginResponse, BaseError>> {
@@ -92,21 +94,38 @@ export class AuthService {
         );
       }
 
-      // Find or create user
-      let userResult = await this.repository.findUserByEmail(email);
+      // Find user by email
+      const userResult = await this.repository.findUserByEmail(email);
 
       if (!isOk(userResult)) {
-        // User doesn't exist, create new user
-        this.logger.info({ email }, 'Creating new user for first-time login');
-        userResult = await this.repository.createUser(email);
-
-        if (!isOk(userResult)) {
-          await this.repository.recordLoginAttempt(email, false, ip, userAgent);
-          return Err(userResult.error);
-        }
+        // User not found - return generic error to avoid revealing if email exists
+        await this.repository.recordLoginAttempt(email, false, ip, userAgent);
+        this.logger.warn({ email }, 'Login failed: user not found');
+        return Err(new UnauthorizedError('Invalid email or password'));
       }
 
-      const user = userResult.value;
+      const userWithHash = userResult.value;
+
+      // Check if user has a password hash
+      if (!userWithHash.passwordHash) {
+        // User exists but has no password (legacy user) - return generic error
+        await this.repository.recordLoginAttempt(email, false, ip, userAgent);
+        this.logger.warn({ email }, 'Login failed: user has no password');
+        return Err(new UnauthorizedError('Invalid email or password'));
+      }
+
+      // Verify password
+      const passwordValid = await bcrypt.compare(password, userWithHash.passwordHash);
+
+      if (!passwordValid) {
+        // Invalid password - return generic error
+        await this.repository.recordLoginAttempt(email, false, ip, userAgent);
+        this.logger.warn({ email }, 'Login failed: invalid password');
+        return Err(new UnauthorizedError('Invalid email or password'));
+      }
+
+      // Remove passwordHash from user object
+      const { passwordHash: _, ...user } = userWithHash;
 
       // Generate access token
       const accessToken = this.generateAccessToken(user);
@@ -143,6 +162,86 @@ export class AuthService {
       this.logger.error({ error, email }, 'Unexpected error during login');
       return Err(
         new InternalError('An unexpected error occurred during login', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
+  }
+
+  /**
+   * Register a new user with email and password
+   * Creates a user account with hashed password
+   *
+   * @param email - User's email address
+   * @param password - User's password (plain text, will be hashed)
+   * @param name - Optional user name
+   * @param ip - IP address of the request (for audit logging)
+   * @param userAgent - User agent string (for audit logging)
+   * @returns Result with LoginResponse or BaseError
+   */
+  async register(
+    email: string,
+    password: string,
+    name: string | undefined,
+    ip: string,
+    userAgent?: string
+  ): Promise<Result<LoginResponse, BaseError>> {
+    try {
+      // Check if user already exists
+      const existingUserResult = await this.repository.findUserByEmail(email);
+
+      if (isOk(existingUserResult)) {
+        this.logger.warn({ email }, 'Registration failed: user already exists');
+        return Err(new UnauthorizedError('User already exists'));
+      }
+
+      // Hash password with bcrypt (10 rounds)
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Create new user
+      const userResult = await this.repository.createUser(email, passwordHash, name);
+
+      if (!isOk(userResult)) {
+        this.logger.error({ email }, 'Failed to create user during registration');
+        return Err(userResult.error);
+      }
+
+      const user = userResult.value;
+
+      // Generate access token
+      const accessToken = this.generateAccessToken(user);
+
+      // Generate refresh token
+      const refreshToken = this.generateRefreshToken();
+      const refreshTokenHash = await this.hashToken(refreshToken);
+
+      // Calculate refresh token expiration
+      const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_SECONDS * 1000);
+
+      // Store refresh token in database
+      const storeResult = await this.repository.createRefreshToken(
+        user.id,
+        refreshTokenHash,
+        expiresAt
+      );
+
+      if (!isOk(storeResult)) {
+        return Err(storeResult.error);
+      }
+
+      // Record successful registration (as a login attempt)
+      await this.repository.recordLoginAttempt(email, true, ip, userAgent);
+
+      this.logger.info({ userId: user.id, email }, 'User registered successfully');
+
+      return Ok({
+        accessToken,
+        user,
+      });
+    } catch (error) {
+      this.logger.error({ error, email }, 'Unexpected error during registration');
+      return Err(
+        new InternalError('An unexpected error occurred during registration', {
           error: error instanceof Error ? error.message : String(error),
         })
       );

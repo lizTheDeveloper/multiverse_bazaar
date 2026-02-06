@@ -6,7 +6,7 @@
 import { Hono } from 'hono';
 import { isOk } from '@multiverse-bazaar/shared';
 import { AuthService } from './service.js';
-import { loginSchema, refreshSchema } from './schemas.js';
+import { loginSchema, registerSchema, refreshSchema } from './schemas.js';
 import { authMiddleware } from './middleware.js';
 import { Logger } from '../../infra/logger.js';
 
@@ -36,11 +36,12 @@ export function createAuthRoutes(authService: AuthService): Hono<AuthContext> {
 
   /**
    * POST /auth/login
-   * Login with email (no password - email-only authentication)
+   * Login with email and password
    *
    * Request body:
    * {
-   *   "email": "user@example.com"
+   *   "email": "user@example.com",
+   *   "password": "securepassword"
    * }
    *
    * Response:
@@ -79,7 +80,7 @@ export function createAuthRoutes(authService: AuthService): Hono<AuthContext> {
       );
     }
 
-    const { email } = validation.data;
+    const { email, password } = validation.data;
 
     // Get IP address for rate limiting
     const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
@@ -87,7 +88,7 @@ export function createAuthRoutes(authService: AuthService): Hono<AuthContext> {
 
     logger.info({ email, ip }, 'Login attempt');
 
-    const result = await authService.login(email, ip, userAgent);
+    const result = await authService.login(email, password, ip, userAgent);
 
     if (!isOk(result)) {
       const error = result.error;
@@ -110,6 +111,89 @@ export function createAuthRoutes(authService: AuthService): Hono<AuthContext> {
     const { accessToken, user } = result.value;
 
     logger.info({ userId: user.id }, 'Login successful');
+
+    return c.json({
+      accessToken,
+      user,
+    });
+  });
+
+  /**
+   * POST /auth/register
+   * Register a new user with email and password
+   *
+   * Request body:
+   * {
+   *   "email": "user@example.com",
+   *   "password": "securepassword",
+   *   "name": "User Name" (optional)
+   * }
+   *
+   * Response:
+   * {
+   *   "accessToken": "jwt.token.here",
+   *   "user": {
+   *     "id": "uuid",
+   *     "email": "user@example.com",
+   *     "name": "User Name",
+   *     ...
+   *   }
+   * }
+   */
+  router.post('/register', async (c) => {
+    const logger = c.get('logger');
+
+    // Parse and validate request body
+    const body = await c.req.json();
+    const validation = registerSchema.safeParse(body);
+
+    if (!validation.success) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request body',
+            fieldErrors: validation.error.errors.map(err => ({
+              field: err.path.join('.'),
+              message: err.message,
+            })),
+          },
+        },
+        400
+      );
+    }
+
+    const { email, password, name } = validation.data;
+
+    // Get IP address for audit logging
+    const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+    const userAgent = c.req.header('user-agent');
+
+    logger.info({ email, ip }, 'Registration attempt');
+
+    const result = await authService.register(email, password, name, ip, userAgent);
+
+    if (!isOk(result)) {
+      const error = result.error;
+      logger.warn({ email, error: error.message }, 'Registration failed');
+
+      const statusCode = error.statusCode as 400 | 401 | 403 | 404 | 429 | 500;
+
+      return c.json(
+        {
+          error: {
+            code: error.code,
+            message: error.message,
+            ...(error.details && { details: error.details }),
+          },
+        },
+        statusCode
+      );
+    }
+
+    const { accessToken, user } = result.value;
+
+    logger.info({ userId: user.id }, 'Registration successful');
 
     return c.json({
       accessToken,

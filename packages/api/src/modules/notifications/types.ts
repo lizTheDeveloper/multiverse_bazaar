@@ -115,20 +115,18 @@ export interface RegisterPushTokenRequest {
  * Query parameters for listing notifications
  */
 export interface NotificationListQuery {
-  page?: number;
+  cursor?: string;
   limit?: number;
   unreadOnly?: boolean;
 }
 
 /**
- * Response for notification list with pagination
+ * Response for notification list with cursor-based pagination
  */
 export interface NotificationListResponse {
   notifications: Notification[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 /**

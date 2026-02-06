@@ -18,10 +18,21 @@ export interface UserProfile {
 
 /**
  * Login request payload
- * Simple email-based authentication (no password)
+ * Password-based authentication
  */
 export interface LoginRequest {
   email: string;
+  password: string;
+}
+
+/**
+ * Register request payload
+ * Creates a new user account with password
+ */
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  name?: string;
 }
 
 /**

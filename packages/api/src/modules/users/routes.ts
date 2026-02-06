@@ -12,6 +12,7 @@ import {
   inviteExternalUserSchema,
 } from './schemas.js';
 import { Logger } from '../../infra/logger.js';
+import { MAX_FILE_SIZE } from '../uploads/types.js';
 
 /**
  * Context variables available in user routes
@@ -171,6 +172,188 @@ export function createUserRoutes(
     }
 
     return c.json(result.value);
+  });
+
+  /**
+   * POST /users/me/avatar
+   * Upload and update current user's avatar image (requires authentication)
+   *
+   * Request:
+   * - Content-Type: multipart/form-data
+   * - Body: file (binary data)
+   *
+   * Response:
+   * {
+   *   "avatarUrl": "https://api.example.com/uploads/uuid"
+   * }
+   *
+   * Security:
+   * - Requires authentication
+   * - 5MB file size limit enforced
+   * - MIME type validated via magic bytes
+   * - UUID-based filename generated
+   * - EXIF metadata stripped
+   * - Old avatar file is automatically deleted
+   */
+  router.post('/me/avatar', authMiddleware, async (c) => {
+    const logger = c.get('logger');
+    const user = c.get('user');
+
+    if (!user) {
+      logger.error('No user in context despite auth middleware');
+      return c.json(
+        {
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required',
+          },
+        },
+        401
+      );
+    }
+
+    logger.info({ userId: user.id }, 'Avatar upload attempt');
+
+    // Parse multipart form data
+    let formData: FormData;
+    try {
+      formData = await c.req.formData();
+    } catch (error) {
+      logger.warn({ error }, 'Failed to parse multipart form data');
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid multipart form data',
+            details: {
+              error: error instanceof Error ? error.message : String(error),
+            },
+          },
+        },
+        400
+      );
+    }
+
+    // Get the file from form data
+    const file = formData.get('file');
+
+    if (!file) {
+      logger.warn('No file in avatar upload request');
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'No file provided',
+            fieldErrors: [
+              {
+                field: 'file',
+                message: 'File is required',
+              },
+            ],
+          },
+        },
+        400
+      );
+    }
+
+    // Ensure file is a File object (not a string)
+    if (typeof file === 'string') {
+      logger.warn('File field contains string instead of file');
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid file format',
+            fieldErrors: [
+              {
+                field: 'file',
+                message: 'Expected file, got string',
+              },
+            ],
+          },
+        },
+        400
+      );
+    }
+
+    // Check file size before reading (early rejection)
+    if (file.size > MAX_FILE_SIZE) {
+      logger.warn({ size: file.size, maxSize: MAX_FILE_SIZE }, 'File too large');
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: `File size exceeds maximum of ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB`,
+            fieldErrors: [
+              {
+                field: 'file',
+                message: `File size ${file.size} bytes exceeds maximum of ${MAX_FILE_SIZE} bytes`,
+              },
+            ],
+            details: {
+              size: file.size,
+              maxSize: MAX_FILE_SIZE,
+            },
+          },
+        },
+        400
+      );
+    }
+
+    // Read file into buffer
+    let buffer: Buffer;
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+    } catch (error) {
+      logger.error({ error }, 'Failed to read file buffer');
+      return c.json(
+        {
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Failed to read file',
+            details: {
+              error: error instanceof Error ? error.message : String(error),
+            },
+          },
+        },
+        500
+      );
+    }
+
+    // Update the user's avatar
+    const result = await userService.updateAvatar(user.id, buffer, file.name);
+
+    if (!isOk(result)) {
+      const error = result.error;
+      logger.warn({ userId: user.id, error: error.message }, 'Avatar upload failed');
+
+      const statusCode = error.statusCode as 400 | 401 | 403 | 404 | 429 | 500;
+
+      const errorResponse: any = {
+        code: error.code,
+        message: error.message,
+      };
+
+      if (error.details) {
+        errorResponse.details = error.details;
+      }
+
+      if ('fieldErrors' in error && error.fieldErrors) {
+        errorResponse.fieldErrors = error.fieldErrors;
+      }
+
+      return c.json(
+        {
+          error: errorResponse,
+        },
+        statusCode
+      );
+    }
+
+    logger.info({ userId: user.id, avatarUrl: result.value.avatarUrl }, 'Avatar updated successfully');
+
+    return c.json(result.value, 200);
   });
 
   /**

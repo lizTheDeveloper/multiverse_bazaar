@@ -12,6 +12,7 @@ import {
   UpdateProjectRequest,
   ProjectListQuery,
 } from './types.js';
+import { decodeCursor } from '../../shared/pagination.js';
 
 /**
  * Repository for project-related database operations
@@ -214,18 +215,16 @@ export class ProjectRepository {
   }
 
   /**
-   * List projects with pagination and filters
+   * List projects with cursor-based pagination and filters
    *
    * @param query - Query parameters for filtering and pagination
-   * @returns Result with array of projects or InternalError
+   * @returns Result with array of projects (limit + 1 for hasMore detection) or InternalError
    */
   async list(
     query: ProjectListQuery
-  ): Promise<Result<{ projects: Project[]; total: number }, InternalError>> {
+  ): Promise<Result<{ projects: Project[] }, InternalError>> {
     try {
-      const page = query.page || 1;
       const limit = query.limit || 20;
-      const skip = (page - 1) * limit;
 
       // Build where clause based on filters
       const where: any = {};
@@ -247,18 +246,44 @@ export class ProjectRepository {
         };
       }
 
-      // Execute query with pagination
-      const [projects, total] = await Promise.all([
-        this.db.project.findMany({
-          where,
-          skip,
-          take: limit,
-          orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
-        }),
-        this.db.project.count({ where }),
-      ]);
+      // Add cursor-based filtering if cursor is provided
+      if (query.cursor) {
+        try {
+          const cursorData = decodeCursor(query.cursor);
+          // Use compound cursor: (createdAt, id) < (cursorDate, cursorId)
+          // This ensures stable ordering even when createdAt values are the same
+          where.OR = [
+            {
+              createdAt: {
+                lt: cursorData.createdAt,
+              },
+            },
+            {
+              createdAt: cursorData.createdAt,
+              id: {
+                lt: cursorData.id,
+              },
+            },
+          ];
+        } catch (error) {
+          return Err(
+            new InternalError('Invalid cursor', {
+              cursor: query.cursor,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
+      }
 
-      return Ok({ projects, total });
+      // Fetch limit + 1 to determine if there are more results
+      // Order by featured first, then by createdAt DESC, then by id DESC for stable sorting
+      const projects = await this.db.project.findMany({
+        where,
+        take: limit + 1,
+        orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      });
+
+      return Ok({ projects });
     } catch (error) {
       return Err(
         new InternalError('Failed to list projects', {

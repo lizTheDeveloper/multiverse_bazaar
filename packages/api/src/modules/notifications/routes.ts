@@ -46,10 +46,10 @@ export function createNotificationRoutes(
 
   /**
    * GET /notifications
-   * List notifications for the authenticated user (requires authentication)
+   * List notifications for the authenticated user with cursor-based pagination (requires authentication)
    *
    * Query parameters:
-   * - page: number (optional, default: 1)
+   * - cursor: string (optional, base64-encoded cursor for pagination)
    * - limit: number (optional, default: 20, max: 100)
    * - unreadOnly: boolean (optional, default: false)
    *
@@ -67,10 +67,8 @@ export function createNotificationRoutes(
    *       "createdAt": "2025-01-15T12:00:00Z"
    *     }
    *   ],
-   *   "total": 42,
-   *   "page": 1,
-   *   "limit": 20,
-   *   "totalPages": 3
+   *   "nextCursor": "abc123" | null,
+   *   "hasMore": true | false
    * }
    */
   router.get('/', authMiddleware(authService), async (c) => {

@@ -47,17 +47,18 @@ export class AuthRepository {
   }
 
   /**
-   * Find a user by email address
+   * Find a user by email address (includes passwordHash for authentication)
    * @param email - User's email address
-   * @returns Result with user or NotFoundError
+   * @returns Result with user including passwordHash or NotFoundError
    */
-  async findUserByEmail(email: string): Promise<Result<UserProfile, NotFoundError | InternalError>> {
+  async findUserByEmail(email: string): Promise<Result<UserProfile & { passwordHash: string | null }, NotFoundError | InternalError>> {
     try {
       const user = await this.db.user.findUnique({
         where: { email },
         select: {
           id: true,
           email: true,
+          passwordHash: true,
           name: true,
           avatarUrl: true,
           bio: true,
@@ -80,14 +81,20 @@ export class AuthRepository {
   }
 
   /**
-   * Create a new user with email (for first-time login)
+   * Create a new user with email and hashed password
    * @param email - User's email address
+   * @param passwordHash - Bcrypt hashed password
+   * @param name - Optional user name
    * @returns Result with created user or InternalError
    */
-  async createUser(email: string): Promise<Result<UserProfile, InternalError>> {
+  async createUser(email: string, passwordHash: string, name?: string): Promise<Result<UserProfile, InternalError>> {
     try {
       const user = await this.db.user.create({
-        data: { email },
+        data: {
+          email,
+          passwordHash,
+          name,
+        },
         select: {
           id: true,
           email: true,

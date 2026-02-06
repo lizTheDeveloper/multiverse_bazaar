@@ -10,10 +10,12 @@ import {
   IdeaWithCreator,
   IdeaWithInterests,
   IdeaInterest,
+  IdeaUpvote,
   CreateIdeaRequest,
   UpdateIdeaRequest,
   IdeaListQuery,
 } from './types.js';
+import { decodeCursor } from '../../shared/pagination.js';
 
 /**
  * Repository for idea-related database operations
@@ -241,18 +243,16 @@ export class IdeaRepository {
   }
 
   /**
-   * List ideas with pagination and filters
+   * List ideas with cursor-based pagination and filters
    *
    * @param query - Query parameters for filtering and pagination
-   * @returns Result with array of ideas with creators or InternalError
+   * @returns Result with array of ideas with creators (limit + 1 for hasMore detection) or InternalError
    */
   async list(
     query: IdeaListQuery
-  ): Promise<Result<{ ideas: IdeaWithCreator[]; total: number }, InternalError>> {
+  ): Promise<Result<{ ideas: IdeaWithCreator[] }, InternalError>> {
     try {
-      const page = query.page || 1;
       const limit = query.limit || 20;
-      const skip = (page - 1) * limit;
 
       // Build where clause based on filters
       const where: any = {};
@@ -265,28 +265,53 @@ export class IdeaRepository {
         where.creatorId = query.creatorId;
       }
 
-      // Execute query with pagination
-      const [ideas, total] = await Promise.all([
-        this.db.idea.findMany({
-          where,
-          skip,
-          take: limit,
-          include: {
-            creator: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatarUrl: true,
+      // Add cursor-based filtering if cursor is provided
+      if (query.cursor) {
+        try {
+          const cursorData = decodeCursor(query.cursor);
+          // Use compound cursor: (createdAt, id) < (cursorDate, cursorId)
+          where.OR = [
+            {
+              createdAt: {
+                lt: cursorData.createdAt,
               },
             },
-          },
-          orderBy: [{ createdAt: 'desc' }],
-        }),
-        this.db.idea.count({ where }),
-      ]);
+            {
+              createdAt: cursorData.createdAt,
+              id: {
+                lt: cursorData.id,
+              },
+            },
+          ];
+        } catch (error) {
+          return Err(
+            new InternalError('Invalid cursor', {
+              cursor: query.cursor,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
+      }
 
-      return Ok({ ideas: ideas as IdeaWithCreator[], total });
+      // Fetch limit + 1 to determine if there are more results
+      // Order by createdAt DESC, then by id DESC for stable sorting
+      const ideas = await this.db.idea.findMany({
+        where,
+        take: limit + 1,
+        include: {
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      });
+
+      return Ok({ ideas: ideas as IdeaWithCreator[] });
     } catch (error) {
       return Err(
         new InternalError('Failed to list ideas', {
@@ -508,6 +533,111 @@ export class IdeaRepository {
           error: error instanceof Error ? error.message : String(error),
         })
       );
+    }
+  }
+
+  /**
+   * Create an upvote for an idea
+   * @param userId - User ID creating the upvote
+   * @param ideaId - Idea ID being upvoted
+   * @returns Result with created upvote or InternalError
+   */
+  async createUpvote(userId: string, ideaId: string): Promise<Result<IdeaUpvote, InternalError>> {
+    try {
+      const upvote = await this.db.ideaUpvote.create({
+        data: {
+          userId,
+          ideaId,
+        },
+        select: {
+          id: true,
+          userId: true,
+          ideaId: true,
+          createdAt: true,
+        },
+      });
+
+      return Ok(upvote as IdeaUpvote);
+    } catch (error) {
+      return Err(new InternalError('Failed to create idea upvote', {
+        userId,
+        ideaId,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
+
+  /**
+   * Delete an upvote from an idea
+   * @param userId - User ID who created the upvote
+   * @param ideaId - Idea ID that was upvoted
+   * @returns Result with void or InternalError
+   */
+  async deleteUpvote(userId: string, ideaId: string): Promise<Result<void, InternalError>> {
+    try {
+      await this.db.ideaUpvote.delete({
+        where: {
+          userId_ideaId: {
+            userId,
+            ideaId,
+          },
+        },
+      });
+
+      return Ok(undefined);
+    } catch (error) {
+      return Err(new InternalError('Failed to delete idea upvote', {
+        userId,
+        ideaId,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
+
+  /**
+   * Check if a user has upvoted an idea
+   * @param userId - User ID to check
+   * @param ideaId - Idea ID to check
+   * @returns Result with boolean indicating if upvote exists
+   */
+  async hasUpvoted(userId: string, ideaId: string): Promise<Result<boolean, InternalError>> {
+    try {
+      const upvote = await this.db.ideaUpvote.findUnique({
+        where: {
+          userId_ideaId: {
+            userId,
+            ideaId,
+          },
+        },
+      });
+
+      return Ok(upvote !== null);
+    } catch (error) {
+      return Err(new InternalError('Failed to check idea upvote existence', {
+        userId,
+        ideaId,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
+
+  /**
+   * Get total upvote count for an idea
+   * @param ideaId - Idea ID to count upvotes for
+   * @returns Result with upvote count or InternalError
+   */
+  async getUpvoteCount(ideaId: string): Promise<Result<number, InternalError>> {
+    try {
+      const count = await this.db.ideaUpvote.count({
+        where: { ideaId },
+      });
+
+      return Ok(count);
+    } catch (error) {
+      return Err(new InternalError('Failed to get upvote count for idea', {
+        ideaId,
+        error: error instanceof Error ? error.message : String(error),
+      }));
     }
   }
 }

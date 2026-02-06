@@ -11,7 +11,6 @@ import {
   isOk,
   BaseError,
   NotFoundError,
-  ForbiddenError,
   ConflictError,
   InternalError,
 } from '@multiverse-bazaar/shared';
@@ -24,6 +23,7 @@ import {
   UserProject,
 } from './types.js';
 import { Logger } from '../../infra/logger.js';
+import { UploadService } from '../uploads/service.js';
 
 /**
  * Invitation expiration time (7 days in milliseconds)
@@ -37,7 +37,8 @@ const INVITATION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 export class UserService {
   constructor(
     private readonly repository: UserRepository,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly uploadService?: UploadService
   ) {}
 
   /**
@@ -294,6 +295,101 @@ export class UserService {
         { error, inviterId, email, projectId, role },
         'Unexpected error creating external user invitation'
       );
+      return Err(
+        new InternalError('An unexpected error occurred', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
+  }
+
+  /**
+   * Update user's avatar by uploading a new image file
+   * Handles file upload and updates the user's avatarUrl field
+   * Optionally deletes the old avatar file if it exists
+   *
+   * @param userId - User ID
+   * @param file - File buffer
+   * @param originalName - Original filename
+   * @returns Result with the new avatar URL or error
+   */
+  async updateAvatar(
+    userId: string,
+    file: Buffer,
+    originalName: string
+  ): Promise<Result<{ avatarUrl: string }, BaseError>> {
+    try {
+      // Validate that uploadService is available
+      if (!this.uploadService) {
+        this.logger.error({ userId }, 'UploadService not available in UserService');
+        return Err(
+          new InternalError('Upload service is not configured', {
+            userId,
+          })
+        );
+      }
+
+      // Get current user to check for existing avatar
+      const userResult = await this.repository.findById(userId);
+      if (!isOk(userResult)) {
+        this.logger.warn({ userId }, 'User not found for avatar update');
+        return Err(userResult.error);
+      }
+
+      const user = userResult.value;
+      const oldAvatarUrl = user.avatarUrl;
+
+      // Upload the new avatar file
+      const uploadResult = await this.uploadService.upload(userId, file, originalName);
+
+      if (!isOk(uploadResult)) {
+        this.logger.warn({ userId, error: uploadResult.error.message }, 'Failed to upload avatar');
+        return Err(uploadResult.error);
+      }
+
+      const { url: newAvatarUrl } = uploadResult.value;
+
+      // Update user's avatarUrl in database
+      const updateResult = await this.repository.update(userId, {
+        avatarUrl: newAvatarUrl,
+      });
+
+      if (!isOk(updateResult)) {
+        this.logger.error(
+          { userId, error: updateResult.error.message },
+          'Failed to update user avatar URL'
+        );
+        // Note: The file has been uploaded but we failed to update the user record
+        // This is a rare edge case. The file will remain orphaned but can be cleaned up later
+        return Err(updateResult.error);
+      }
+
+      // Optionally delete old avatar file if it exists and is an upload URL
+      if (oldAvatarUrl && oldAvatarUrl.includes('/api/uploads/')) {
+        // Extract the upload ID from the URL
+        const uploadIdMatch = oldAvatarUrl.match(/\/api\/uploads\/([^/]+)$/);
+        if (uploadIdMatch && uploadIdMatch[1]) {
+          const oldUploadId = uploadIdMatch[1];
+          this.logger.info({ userId, oldUploadId }, 'Attempting to delete old avatar');
+
+          // Try to delete the old file (don't fail if this fails)
+          const deleteResult = await this.uploadService.deleteFile(userId, oldUploadId);
+          if (!isOk(deleteResult)) {
+            this.logger.warn(
+              { userId, oldUploadId, error: deleteResult.error.message },
+              'Failed to delete old avatar (non-critical)'
+            );
+            // Continue anyway - this is not a critical error
+          } else {
+            this.logger.info({ userId, oldUploadId }, 'Old avatar deleted successfully');
+          }
+        }
+      }
+
+      this.logger.info({ userId, avatarUrl: newAvatarUrl }, 'Avatar updated successfully');
+      return Ok({ avatarUrl: newAvatarUrl });
+    } catch (error) {
+      this.logger.error({ error, userId }, 'Unexpected error updating avatar');
       return Err(
         new InternalError('An unexpected error occurred', {
           error: error instanceof Error ? error.message : String(error),

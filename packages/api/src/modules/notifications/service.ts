@@ -26,6 +26,7 @@ import {
   UnreadCountResponse,
   Platform,
 } from './types.js';
+import { createPaginatedResponse } from '../../shared/pagination.js';
 
 /**
  * Service for notification operations
@@ -221,7 +222,7 @@ export class NotificationService {
   }
 
   /**
-   * Get notifications for a user with pagination
+   * Get notifications for a user with cursor-based pagination
    *
    * @param userId - User ID
    * @param query - Query parameters for pagination and filtering
@@ -229,22 +230,29 @@ export class NotificationService {
    */
   async list(userId: string, query: NotificationListQuery): Promise<Result<NotificationListResponse, BaseError>> {
     try {
+      const limit = query.limit || 20;
+
       const result = await this.repository.findByUserId(userId, query);
       if (!isOk(result)) {
         return Err(result.error);
       }
 
-      const { notifications, total } = result.value;
-      const page = query.page || 1;
-      const limit = query.limit || 20;
-      const totalPages = Math.ceil(total / limit);
+      const { notifications } = result.value;
+
+      // Create paginated response with cursor
+      const paginatedResponse = createPaginatedResponse(
+        notifications,
+        limit,
+        (notification) => ({
+          id: notification.id,
+          createdAt: notification.createdAt,
+        })
+      );
 
       const response: NotificationListResponse = {
-        notifications,
-        total,
-        page,
-        limit,
-        totalPages,
+        notifications: paginatedResponse.data,
+        nextCursor: paginatedResponse.nextCursor,
+        hasMore: paginatedResponse.hasMore,
       };
 
       return Ok(response);

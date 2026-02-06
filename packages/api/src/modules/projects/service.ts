@@ -22,6 +22,7 @@ import {
   ProjectListResponse,
 } from './types.js';
 import { Logger } from '../../infra/logger.js';
+import { createPaginatedResponse } from '../../shared/pagination.js';
 
 /**
  * Service for project operations
@@ -251,12 +252,12 @@ export class ProjectService {
   }
 
   /**
-   * List projects with pagination and filters
+   * List projects with cursor-based pagination and filters
    * If currentUserId is provided, includes upvote status for each project
    *
    * @param query - Query parameters for filtering and pagination
    * @param currentUserId - Optional ID of current user (for upvote status)
-   * @returns Result with paginated project list or BaseError
+   * @returns Result with cursor-based paginated project list or BaseError
    */
   async list(
     query: ProjectListQuery,
@@ -265,10 +266,9 @@ export class ProjectService {
     try {
       this.logger.info({ query, currentUserId }, 'Listing projects');
 
-      const page = query.page || 1;
       const limit = query.limit || 20;
 
-      // Get projects from repository
+      // Get projects from repository (fetches limit + 1)
       const listResult = await this.repository.list(query);
 
       if (!isOk(listResult)) {
@@ -276,7 +276,7 @@ export class ProjectService {
         return Err(listResult.error);
       }
 
-      const { projects, total } = listResult.value;
+      const { projects } = listResult.value;
 
       // Enrich each project with upvote information
       const enrichedProjects = await Promise.all(
@@ -300,16 +300,25 @@ export class ProjectService {
         })
       );
 
-      const totalPages = Math.ceil(total / limit);
+      // Create paginated response with cursor
+      const paginatedResponse = createPaginatedResponse(
+        enrichedProjects,
+        limit,
+        (project) => ({
+          id: project.id,
+          createdAt: project.createdAt,
+        })
+      );
 
-      this.logger.info({ total, page, limit, totalPages }, 'Projects listed successfully');
+      this.logger.info(
+        { count: paginatedResponse.data.length, hasMore: paginatedResponse.hasMore },
+        'Projects listed successfully'
+      );
 
       return Ok({
-        projects: enrichedProjects,
-        total,
-        page,
-        limit,
-        totalPages,
+        projects: paginatedResponse.data,
+        nextCursor: paginatedResponse.nextCursor,
+        hasMore: paginatedResponse.hasMore,
       });
     } catch (error) {
       this.logger.error({ error, query }, 'Unexpected error listing projects');

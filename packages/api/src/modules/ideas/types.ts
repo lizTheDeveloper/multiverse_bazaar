@@ -31,10 +31,22 @@ export interface Idea {
 }
 
 /**
+ * Idea upvote entity representing a user's upvote on an idea
+ */
+export interface IdeaUpvote {
+  id: string;
+  userId: string;
+  ideaId: string;
+  createdAt: Date;
+}
+
+/**
  * Idea with creator profile included
  */
 export interface IdeaWithCreator extends Idea {
   creator: UserProfile;
+  upvoteCount?: number;
+  hasUpvoted?: boolean;
 }
 
 /**
@@ -92,22 +104,29 @@ export interface GraduateIdeaRequest {
 }
 
 /**
+ * Response for upvote/remove upvote operations on ideas
+ * Indicates current upvote status and total count
+ */
+export interface IdeaUpvoteResponse {
+  upvoted: boolean;
+  count: number;
+}
+
+/**
  * Query parameters for listing ideas
  */
 export interface IdeaListQuery {
-  page?: number;
+  cursor?: string;
   limit?: number;
   status?: IdeaStatus;
   creatorId?: string;
 }
 
 /**
- * Paginated idea list response
+ * Cursor-based paginated idea list response
  */
 export interface IdeaListResponse {
   ideas: IdeaWithCreator[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  nextCursor: string | null;
+  hasMore: boolean;
 }

@@ -72,14 +72,18 @@ export const graduateIdeaSchema = z.object({
 });
 
 /**
+ * Schema for validating idea ID parameter
+ * Ensures ideaId is a valid UUID
+ */
+export const ideaIdParamSchema = z.object({
+  id: z.string().uuid('Invalid idea ID format'),
+});
+
+/**
  * Schema for idea list query parameters
  */
 export const ideaListQuerySchema = z.object({
-  page: z
-    .string()
-    .optional()
-    .transform((val) => (val ? parseInt(val, 10) : 1))
-    .pipe(z.number().int().positive().default(1)),
+  cursor: z.string().optional(),
   limit: z
     .string()
     .optional()
@@ -88,6 +92,11 @@ export const ideaListQuerySchema = z.object({
   status: z.nativeEnum(IdeaStatus).optional(),
   creatorId: z.string().uuid().optional(),
 });
+
+/**
+ * Type inference for validated idea ID parameter
+ */
+export type ValidatedIdeaIdParam = z.infer<typeof ideaIdParamSchema>;
 
 /**
  * Type inference for validated create idea request

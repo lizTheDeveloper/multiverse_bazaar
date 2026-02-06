@@ -90,7 +90,7 @@ export interface UpdateProjectRequest {
  * Query parameters for listing projects
  */
 export interface ProjectListQuery {
-  page?: number;
+  cursor?: string;
   limit?: number;
   status?: ProjectStatus;
   featured?: boolean;
@@ -98,12 +98,10 @@ export interface ProjectListQuery {
 }
 
 /**
- * Paginated project list response
+ * Cursor-based paginated project list response
  */
 export interface ProjectListResponse {
   projects: ProjectWithUpvotes[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  nextCursor: string | null;
+  hasMore: boolean;
 }
