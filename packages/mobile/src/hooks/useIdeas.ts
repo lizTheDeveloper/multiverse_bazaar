@@ -29,33 +29,42 @@ export interface Idea {
 }
 
 interface IdeasResponse {
-  ideas: Idea[];
-  nextCursor?: string;
-  hasMore: boolean;
+  data: Idea[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 interface IdeasParams {
   limit?: number;
-  cursor?: string;
-  sort?: 'recent' | 'popular';
+  status?: string;
+  creatorId?: string;
 }
 
 const IDEAS_KEY = 'ideas';
 const IDEA_KEY = 'idea';
 
-export function useIdeas(params: Omit<IdeasParams, 'cursor'> = {}) {
+export function useIdeas(params: IdeasParams = {}) {
   return useInfiniteQuery({
     queryKey: [IDEAS_KEY, params],
-    queryFn: async ({ pageParam }) => {
-      const queryParams: Record<string, string> = {};
-      if (params.limit) queryParams.limit = String(params.limit);
-      if (params.sort) queryParams.sort = params.sort;
-      if (pageParam) queryParams.cursor = pageParam;
+    queryFn: async ({ pageParam = 1 }) => {
+      const queryParams: Record<string, string> = {
+        page: String(pageParam),
+        limit: String(params.limit || 10),
+      };
+      if (params.status) queryParams.status = params.status;
+      if (params.creatorId) queryParams.creatorId = params.creatorId;
 
       return api.get<IdeasResponse>('/ideas', queryParams);
     },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextCursor : undefined,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.page < lastPage.totalPages) {
+        return lastPage.page + 1;
+      }
+      return undefined;
+    },
   });
 }
 
@@ -133,7 +142,7 @@ export function useUpvoteIdea() {
             ...old,
             pages: old.pages.map((page) => ({
               ...page,
-              ideas: page.ideas.map((idea) =>
+              data: page.data.map((idea) =>
                 idea.id === ideaId
                   ? {
                       ...idea,
@@ -181,6 +190,18 @@ export function useWithdrawInterest() {
 
   return useMutation({
     mutationFn: (ideaId: string) => api.delete(`/ideas/${ideaId}/interest`),
+    onSuccess: (_, ideaId) => {
+      queryClient.invalidateQueries({ queryKey: [IDEAS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [IDEA_KEY, ideaId] });
+    },
+  });
+}
+
+export function useGraduateIdea() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ideaId: string) => api.post(`/ideas/${ideaId}/graduate`),
     onSuccess: (_, ideaId) => {
       queryClient.invalidateQueries({ queryKey: [IDEAS_KEY] });
       queryClient.invalidateQueries({ queryKey: [IDEA_KEY, ideaId] });

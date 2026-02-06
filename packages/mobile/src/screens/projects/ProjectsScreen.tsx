@@ -29,10 +29,10 @@ export function ProjectsScreen() {
     fetchNextPage,
     refetch,
     isRefetching,
-  } = useProjects({ limit: 10, sort: 'recent' });
+  } = useProjects({ limit: 10 });
   const upvoteMutation = useUpvoteProject();
 
-  const projects = data?.pages.flatMap((page) => page.projects) ?? [];
+  const projects = data?.pages.flatMap((page) => page.data) ?? [];
 
   const handleProjectPress = useCallback(
     (projectId: string) => {

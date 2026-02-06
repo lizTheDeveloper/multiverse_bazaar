@@ -80,7 +80,7 @@ export function NotificationsScreen() {
   const markAsReadMutation = useMarkAsRead();
   const markAllAsReadMutation = useMarkAllAsRead();
 
-  const notifications = data?.pages.flatMap((page) => page.notifications) ?? [];
+  const notifications = data?.pages.flatMap((page) => page.data) ?? [];
   const hasUnread = notifications.some((n) => !n.read);
 
   const handleNotificationPress = useCallback(

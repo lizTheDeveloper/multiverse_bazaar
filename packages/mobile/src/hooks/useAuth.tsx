@@ -12,14 +12,27 @@ export interface User {
   karma: number;
 }
 
+interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
+}
+
+interface MagicLinkResponse {
+  message: string;
+}
+
 interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isGuest: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  requestMagicLink: (email: string) => Promise<void>;
+  verifyMagicLink: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   continueAsGuest: () => Promise<void>;
+  refreshSession: () => Promise<boolean>;
   requireAuth: () => boolean;
 }
 
@@ -58,23 +71,68 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
-  const login = useCallback(async (email: string, password: string) => {
-    const response = await api.post<{ token: string; user: User }>('/auth/login', {
-      email,
-      password,
-    });
-
+  const saveAuthData = async (response: AuthResponse) => {
     await Promise.all([
-      storage.setToken(response.token),
+      storage.setToken(response.accessToken),
+      storage.setRefreshToken(response.refreshToken),
       storage.setUser(response.user),
       storage.remove(GUEST_MODE_KEY),
     ]);
-
     setIsGuest(false);
     setUser(response.user);
+  };
+
+  const login = useCallback(async (email: string, password: string) => {
+    const response = await api.post<AuthResponse>('/auth/login', {
+      email,
+      password,
+    });
+    await saveAuthData(response);
+  }, []);
+
+  const requestMagicLink = useCallback(async (email: string) => {
+    await api.post<MagicLinkResponse>('/auth/magic-link', { email });
+  }, []);
+
+  const verifyMagicLink = useCallback(async (token: string) => {
+    const response = await api.post<AuthResponse>('/auth/magic-link/verify', { token });
+    await saveAuthData(response);
+  }, []);
+
+  const refreshSession = useCallback(async (): Promise<boolean> => {
+    try {
+      const refreshToken = await storage.getRefreshToken();
+      if (!refreshToken) {
+        return false;
+      }
+
+      const response = await api.post<AuthResponse>('/auth/refresh', {
+        refreshToken,
+      });
+
+      await Promise.all([
+        storage.setToken(response.accessToken),
+        storage.setRefreshToken(response.refreshToken),
+        storage.setUser(response.user),
+      ]);
+
+      setUser(response.user);
+      return true;
+    } catch (error) {
+      console.error('Failed to refresh session:', error);
+      await storage.clear();
+      setUser(null);
+      return false;
+    }
   }, []);
 
   const logout = useCallback(async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      // Ignore logout API errors, still clear local state
+      console.error('Logout API error:', error);
+    }
     await storage.clear();
     setUser(null);
     setIsGuest(false);
@@ -97,8 +155,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isGuest,
         isLoading,
         login,
+        requestMagicLink,
+        verifyMagicLink,
         logout,
         continueAsGuest,
+        refreshSession,
         requireAuth,
       }}
     >

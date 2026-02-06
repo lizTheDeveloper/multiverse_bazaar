@@ -23,9 +23,11 @@ export interface Notification {
 }
 
 interface NotificationsResponse {
-  notifications: Notification[];
-  nextCursor?: string;
-  hasMore: boolean;
+  data: Notification[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
   unreadCount: number;
 }
 
@@ -35,13 +37,20 @@ const UNREAD_COUNT_KEY = 'unread-count';
 export function useNotifications() {
   return useInfiniteQuery({
     queryKey: [NOTIFICATIONS_KEY],
-    queryFn: async ({ pageParam }) => {
-      const queryParams: Record<string, string> = { limit: '20' };
-      if (pageParam) queryParams.cursor = pageParam;
+    queryFn: async ({ pageParam = 1 }) => {
+      const queryParams: Record<string, string> = {
+        page: String(pageParam),
+        limit: '20',
+      };
       return api.get<NotificationsResponse>('/notifications', queryParams);
     },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextCursor : undefined,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.page < lastPage.totalPages) {
+        return lastPage.page + 1;
+      }
+      return undefined;
+    },
   });
 }
 

@@ -21,33 +21,42 @@ export interface Project {
 }
 
 interface ProjectsResponse {
-  projects: Project[];
-  nextCursor?: string;
-  hasMore: boolean;
+  data: Project[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 interface ProjectsParams {
   limit?: number;
-  cursor?: string;
-  sort?: 'recent' | 'popular';
+  status?: string;
+  featured?: boolean;
 }
 
 const PROJECTS_KEY = 'projects';
 const PROJECT_KEY = 'project';
 
-export function useProjects(params: Omit<ProjectsParams, 'cursor'> = {}) {
+export function useProjects(params: ProjectsParams = {}) {
   return useInfiniteQuery({
     queryKey: [PROJECTS_KEY, params],
-    queryFn: async ({ pageParam }) => {
-      const queryParams: Record<string, string> = {};
-      if (params.limit) queryParams.limit = String(params.limit);
-      if (params.sort) queryParams.sort = params.sort;
-      if (pageParam) queryParams.cursor = pageParam;
+    queryFn: async ({ pageParam = 1 }) => {
+      const queryParams: Record<string, string> = {
+        page: String(pageParam),
+        limit: String(params.limit || 10),
+      };
+      if (params.status) queryParams.status = params.status;
+      if (params.featured !== undefined) queryParams.featured = String(params.featured);
 
       return api.get<ProjectsResponse>('/projects', queryParams);
     },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextCursor : undefined,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.page < lastPage.totalPages) {
+        return lastPage.page + 1;
+      }
+      return undefined;
+    },
   });
 }
 
@@ -129,7 +138,7 @@ export function useUpvoteProject() {
             ...old,
             pages: old.pages.map((page) => ({
               ...page,
-              projects: page.projects.map((project) =>
+              data: page.data.map((project) =>
                 project.id === projectId
                   ? {
                       ...project,
@@ -156,6 +165,18 @@ export function useUpvoteProject() {
     },
     onSettled: (_, __, projectId) => {
       // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: [PROJECT_KEY, projectId] });
+    },
+  });
+}
+
+export function useRemoveUpvoteProject() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (projectId: string) => api.delete(`/projects/${projectId}/upvote`),
+    onSuccess: (_, projectId) => {
+      queryClient.invalidateQueries({ queryKey: [PROJECTS_KEY] });
       queryClient.invalidateQueries({ queryKey: [PROJECT_KEY, projectId] });
     },
   });

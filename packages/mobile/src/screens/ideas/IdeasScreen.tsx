@@ -29,10 +29,10 @@ export function IdeasScreen() {
     fetchNextPage,
     refetch,
     isRefetching,
-  } = useIdeas({ limit: 10, sort: 'recent' });
+  } = useIdeas({ limit: 10 });
   const upvoteMutation = useUpvoteIdea();
 
-  const ideas = data?.pages.flatMap((page) => page.ideas) ?? [];
+  const ideas = data?.pages.flatMap((page) => page.data) ?? [];
 
   const handleIdeaPress = useCallback(
     (ideaId: string) => {

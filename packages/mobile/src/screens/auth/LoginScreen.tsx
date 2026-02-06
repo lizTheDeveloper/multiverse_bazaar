@@ -13,13 +13,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { colors, spacing, typography } from '../../theme';
 
+type AuthMode = 'password' | 'magic-link' | 'magic-link-sent';
+
 export function LoginScreen() {
-  const { login, continueAsGuest } = useAuth();
+  const { login, requestMagicLink, continueAsGuest } = useAuth();
+  const [authMode, setAuthMode] = useState<AuthMode>('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  async function handleLogin() {
+  async function handlePasswordLogin() {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter email and password');
       return;
@@ -35,8 +38,66 @@ export function LoginScreen() {
     }
   }
 
+  async function handleMagicLinkRequest() {
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await requestMagicLink(email);
+      setAuthMode('magic-link-sent');
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to send magic link');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function handleGuestMode() {
     await continueAsGuest();
+  }
+
+  function switchToMagicLink() {
+    setAuthMode('magic-link');
+    setPassword('');
+  }
+
+  function switchToPassword() {
+    setAuthMode('password');
+  }
+
+  if (authMode === 'magic-link-sent') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.logo}>✉️</Text>
+            <Text style={styles.title}>Check Your Email</Text>
+            <Text style={styles.subtitle}>
+              We sent a magic link to {email}. Click the link in your email to sign in.
+            </Text>
+          </View>
+
+          <View style={styles.form}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => setAuthMode('magic-link')}
+            >
+              <Text style={styles.buttonText}>Send Again</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.guestButton}
+              onPress={switchToPassword}
+            >
+              <Text style={styles.guestButtonText}>Use Password Instead</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -68,26 +129,43 @@ export function LoginScreen() {
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter your password"
-                placeholderTextColor={colors.textTertiary}
-                secureTextEntry
-                textContentType="password"
-              />
-            </View>
+            {authMode === 'password' && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter your password"
+                  placeholderTextColor={colors.textTertiary}
+                  secureTextEntry
+                  textContentType="password"
+                />
+              </View>
+            )}
 
             <TouchableOpacity
               style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleLogin}
+              onPress={authMode === 'password' ? handlePasswordLogin : handleMagicLinkRequest}
               disabled={isLoading}
             >
               <Text style={styles.buttonText}>
-                {isLoading ? 'Signing in...' : 'Sign In'}
+                {isLoading
+                  ? 'Please wait...'
+                  : authMode === 'password'
+                    ? 'Sign In'
+                    : 'Send Magic Link'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.switchModeButton}
+              onPress={authMode === 'password' ? switchToMagicLink : switchToPassword}
+            >
+              <Text style={styles.switchModeText}>
+                {authMode === 'password'
+                  ? 'Sign in with magic link instead'
+                  : 'Sign in with password instead'}
               </Text>
             </TouchableOpacity>
 
@@ -139,6 +217,8 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
   },
   form: {
     gap: spacing.md,
@@ -173,6 +253,14 @@ const styles = StyleSheet.create({
   buttonText: {
     ...typography.button,
     color: colors.white,
+  },
+  switchModeButton: {
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  switchModeText: {
+    ...typography.bodySmall,
+    color: colors.primary,
   },
   divider: {
     flexDirection: 'row',

@@ -59,7 +59,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
 export async function sendPushTokenToServer(token: string): Promise<void> {
   try {
-    await api.post('/users/push-token', {
+    await api.post('/notifications/push-token', {
       token,
       platform: Platform.OS,
     });
@@ -70,7 +70,7 @@ export async function sendPushTokenToServer(token: string): Promise<void> {
 
 export async function removePushTokenFromServer(): Promise<void> {
   try {
-    await api.delete('/users/push-token');
+    await api.delete('/notifications/push-token');
   } catch (error) {
     console.error('Error removing push token from server:', error);
   }
