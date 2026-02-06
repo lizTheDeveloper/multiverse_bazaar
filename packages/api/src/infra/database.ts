@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { logger } from './logger';
+import { getLogger } from './logger.js';
 
 /**
  * PrismaClient singleton instance
@@ -14,33 +14,13 @@ let prisma: PrismaClient | null = null;
 export function getPrismaClient(): PrismaClient {
   if (!prisma) {
     prisma = new PrismaClient({
-      log: [
-        { level: 'query', emit: 'event' },
-        { level: 'error', emit: 'event' },
-        { level: 'warn', emit: 'event' },
-      ],
+      log: process.env.NODE_ENV === 'development'
+        ? ['query', 'info', 'warn', 'error']
+        : ['warn', 'error'],
     });
 
-    // Log queries in development
-    if (process.env.NODE_ENV === 'development') {
-      prisma.$on('query', (e: any) => {
-        logger.debug({
-          query: e.query,
-          params: e.params,
-          duration: `${e.duration}ms`,
-        }, 'Prisma Query');
-      });
-    }
-
-    // Log errors
-    prisma.$on('error', (e: any) => {
-      logger.error({ error: e }, 'Prisma Error');
-    });
-
-    // Log warnings
-    prisma.$on('warn', (e: any) => {
-      logger.warn({ warning: e }, 'Prisma Warning');
-    });
+    // Note: Prisma event-based logging requires specific configuration in PrismaClient options
+    // For now, we rely on the log levels above
   }
 
   return prisma;
@@ -52,11 +32,13 @@ export function getPrismaClient(): PrismaClient {
  */
 export async function connect(): Promise<void> {
   try {
+    const logger = getLogger();
     const client = getPrismaClient();
     await client.$connect();
     logger.info('Database connection established');
   } catch (error) {
-    logger.error({ error }, 'Failed to connect to database');
+    const logger = getLogger();
+    logger.error('Failed to connect to database', { error });
     throw error;
   }
 }
@@ -67,13 +49,15 @@ export async function connect(): Promise<void> {
  */
 export async function disconnect(): Promise<void> {
   try {
+    const logger = getLogger();
     if (prisma) {
       await prisma.$disconnect();
       prisma = null;
       logger.info('Database connection closed');
     }
   } catch (error) {
-    logger.error({ error }, 'Failed to disconnect from database');
+    const logger = getLogger();
+    logger.error('Failed to disconnect from database', { error });
     throw error;
   }
 }
@@ -88,7 +72,8 @@ export async function healthCheck(): Promise<boolean> {
     await client.$queryRaw`SELECT 1`;
     return true;
   } catch (error) {
-    logger.error({ error }, 'Database health check failed');
+    const logger = getLogger();
+    logger.error('Database health check failed', { error });
     return false;
   }
 }

@@ -4,12 +4,20 @@
  */
 
 import { Hono } from 'hono';
-import { cors } from 'hono/cors';
 import type { Context, Next } from 'hono';
 import { Container } from './infra/container.js';
 import { Config } from './infra/config.js';
 import { Logger } from './infra/logger.js';
 import { randomUUID } from 'crypto';
+
+// Import security middleware
+import { securityHeaders } from './middleware/security-headers.js';
+import { cors } from './middleware/cors.js';
+import { generalRateLimiter } from './middleware/rate-limit.js';
+import { auditMiddleware } from './modules/audit/middleware.js';
+
+// Import route registration
+import { registerRoutes, notFoundHandler } from './routes/index.js';
 
 /**
  * Variables available in the Hono context.
@@ -136,52 +144,71 @@ export function configureApp(container: Container) {
   const config = container.resolve<Config>('config');
   const logger = container.resolve<Logger>('logger');
 
-  // Store container in context for route handlers
+  // 1. Store container in context (must be first)
   app.use('*', async (c, next) => {
     c.set('container', container);
     await next();
   });
 
-  // Set up CORS middleware
+  // 2. Set up security headers (apply to all responses)
+  app.use('*', securityHeaders());
+
+  // 3. Set up CORS middleware
   app.use('*', cors({
-    origin: config.corsOrigins,
-    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
-    exposeHeaders: ['X-Request-ID'],
-    credentials: true,
+    allowedOrigins: config.corsOrigins,
+    allowCredentials: true,
+    allowedMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+    exposedHeaders: ['X-Request-ID', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+    maxAge: 86400,
+    allowNoOrigin: config.nodeEnv === 'development',
   }));
 
-  // Set up request ID middleware
+  // 4. Set up request ID middleware
   app.use('*', requestIdMiddleware());
 
-  // Set up logging middleware
+  // 5. Set up logging middleware
   app.use('*', loggingMiddleware(logger));
 
-  // Set up error handling middleware
+  // 6. Set up error handling middleware (must be before routes)
   app.use('*', errorHandlerMiddleware(logger));
 
-  // Health check endpoint
-  app.get('/health', (c) => {
-    return c.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      environment: config.nodeEnv,
-    });
+  // 7. Set up general rate limiting (for all API routes)
+  app.use('/api/*', generalRateLimiter());
+
+  // 8. Set up audit middleware (capture request context)
+  app.use('/api/*', auditMiddleware());
+
+  // Health check endpoint (no auth required)
+  app.get('/health', async (c) => {
+    const { PrismaClient } = await import('@prisma/client');
+    const db = container.resolve('db') as InstanceType<typeof PrismaClient>;
+
+    // Check database connectivity
+    let dbStatus = 'unknown';
+    try {
+      await db.$queryRaw`SELECT 1`;
+      dbStatus = 'connected';
+    } catch (error) {
+      dbStatus = 'disconnected';
+      logger.error('Database health check failed', { error });
+    }
+
+    const isHealthy = dbStatus === 'connected';
+    const status = isHealthy ? 200 : 503;
+
+    return c.json(
+      {
+        status: isHealthy ? 'ok' : 'degraded',
+        timestamp: new Date().toISOString(),
+        environment: config.nodeEnv,
+        services: {
+          database: dbStatus,
+        },
+      },
+      status
+    );
   });
-
-  // API versioning - v1 routes will be added here
-  const apiV1 = new Hono<{ Variables: Variables }>();
-
-  // Placeholder route for API v1
-  apiV1.get('/', (c) => {
-    return c.json({
-      message: 'Multiverse Bazaar API v1',
-      version: '1.0.0',
-    });
-  });
-
-  // Mount API v1 routes
-  app.route('/api/v1', apiV1);
 
   // Root endpoint
   app.get('/', (c) => {
@@ -189,8 +216,16 @@ export function configureApp(container: Container) {
       message: 'Welcome to Multiverse Bazaar API',
       version: '1.0.0',
       docs: '/api/v1',
+      health: '/health',
     });
   });
+
+  // Mount API v1 routes
+  const apiV1Routes = registerRoutes(container);
+  app.route('/api/v1', apiV1Routes);
+
+  // 404 handler for unmatched routes (must be last)
+  app.notFound(notFoundHandler());
 
   return app;
 }
