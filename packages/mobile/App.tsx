@@ -4,6 +4,7 @@ import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './src/hooks/useAuth';
+import { usePushNotifications } from './src/hooks/usePushNotifications';
 import { RootNavigator, RootStackParamList } from './src/navigation';
 
 const queryClient = new QueryClient({
@@ -14,6 +15,18 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function AppContent() {
+  // Set up push notification listeners
+  usePushNotifications();
+
+  return (
+    <>
+      <RootNavigator />
+      <StatusBar style="auto" />
+    </>
+  );
+}
 
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['multiverse-bazaar://'],
@@ -61,8 +74,7 @@ export default function App() {
       <AuthProvider>
         <SafeAreaProvider>
           <NavigationContainer linking={linking}>
-            <RootNavigator />
-            <StatusBar style="auto" />
+            <AppContent />
           </NavigationContainer>
         </SafeAreaProvider>
       </AuthProvider>

@@ -4,3 +4,4 @@ export * from './useProjects';
 export * from './useIdeas';
 export * from './useProfile';
 export * from './useNotifications';
+export * from './usePushNotifications';

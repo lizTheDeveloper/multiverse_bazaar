@@ -6,6 +6,8 @@ import { ProjectsStack } from './ProjectsStack';
 import { IdeasStack } from './IdeasStack';
 import { NotificationsStack } from './NotificationsStack';
 import { ProfileStack } from './ProfileStack';
+import { useUnreadCount } from '../hooks/useNotifications';
+import { useAuth } from '../hooks/useAuth';
 import { colors, spacing } from '../theme';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -37,6 +39,10 @@ function TabIcon({ label, focused, badge }: TabIconProps) {
 }
 
 export function MainTabs() {
+  const { isGuest } = useAuth();
+  const { data: unreadData } = useUnreadCount();
+  const unreadCount = isGuest ? 0 : (unreadData?.count ?? 0);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -81,7 +87,7 @@ export function MainTabs() {
         options={{
           title: 'Notifications',
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="Notifications" focused={focused} badge={0} />
+            <TabIcon label="Notifications" focused={focused} badge={unreadCount} />
           ),
         }}
       />
