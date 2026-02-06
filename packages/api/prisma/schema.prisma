@@ -84,6 +84,7 @@ model User {
   auditLogs            AuditLog[]
   refreshTokens        RefreshToken[]
   loginAttempts        LoginAttempt[]
+  uploads              Upload[]
 
   @@index([email])
   @@index([invitedById])
@@ -322,4 +323,22 @@ model LoginAttempt {
 
   @@index([email, createdAt])
   @@index([ip, createdAt])
+}
+
+model Upload {
+  id           String   @id @default(uuid())
+  filename     String   @unique
+  originalName String
+  mimeType     String
+  size         Int
+  path         String
+  uploadedBy   String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@index([uploadedBy])
+  @@index([createdAt])
+  @@index([filename])
 }
