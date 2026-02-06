@@ -21,15 +21,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ideas and Projects tabs with full CRUD operations
 - Search functionality with result highlighting
 - OpenSpec workflow documentation and configuration
+- **API Collaborators Module**: Complete CRUD operations for project collaboration management
+- **API Projects Module**: Full project management functionality with repository, service, and routes
+- **API Upvotes Module**: Voting system implementation with upvote tracking
+- **API Users Module**: User management, profiles, and karma system
 
 ### Changed
 - Improved import consistency using explicit type imports
 - Standardized button variants across components
 - Enhanced semantic HTML with proper heading elements
+- Enhanced API client with improved error handling
+- Refined React hooks for better data fetching
+- Updated router configuration
 
 ### Fixed
 - Import path casing issues in search components
 - Icon naming conflicts in Search component
+- Various component refinements and bug fixes
 
 ## [0.1.0] - 2026-02-06
 
