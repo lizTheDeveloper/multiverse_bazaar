@@ -22,6 +22,8 @@ export function IdeasScreen() {
   const {
     data,
     isLoading,
+    isError,
+    error,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
@@ -94,6 +96,21 @@ export function IdeasScreen() {
       );
     }
 
+    if (isError) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>😕</Text>
+          <Text style={styles.emptyTitle}>Something went wrong</Text>
+          <Text style={styles.emptyText}>
+            {error?.message || 'Failed to load ideas. Please try again.'}
+          </Text>
+          <TouchableOpacity style={styles.emptyButton} onPress={() => refetch()}>
+            <Text style={styles.emptyButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyIcon}>💡</Text>
@@ -108,7 +125,7 @@ export function IdeasScreen() {
         )}
       </View>
     );
-  }, [isLoading, isAuthenticated, handleAddIdea]);
+  }, [isLoading, isError, error, isAuthenticated, handleAddIdea, refetch]);
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
