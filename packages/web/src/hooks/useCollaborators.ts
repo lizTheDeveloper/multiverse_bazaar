@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { collaborators as collaboratorsApi } from '@/lib/api';
-import type { InviteCollaboratorInput, Collaborator } from '@/types';
+import type { InviteCollaboratorInput } from '@/types';
 import { projectKeys } from './useProjects';
 
 // Invite collaborator mutation

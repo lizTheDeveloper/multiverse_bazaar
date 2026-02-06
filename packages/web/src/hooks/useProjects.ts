@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projects as projectsApi } from '@/lib/api';
 import type {
-  Project,
   ProjectFilters,
   CreateProjectInput,
   UpdateProjectInput,

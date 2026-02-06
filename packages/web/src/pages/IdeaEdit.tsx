@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useIdea, useUpdateIdea } from '../hooks/useIdeas';
-import { IdeaForm, IdeaFormData } from '../components/ideas/IdeaForm';
+import { IdeaForm, type IdeaFormData } from '../components/ideas/IdeaForm';
 
 export function IdeaEdit() {
   const { id } = useParams<{ id: string }>();

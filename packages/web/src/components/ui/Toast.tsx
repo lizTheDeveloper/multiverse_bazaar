@@ -12,7 +12,7 @@ export interface ToastProps {
 }
 
 const Toast: React.FC<ToastProps> = ({
-  id,
+  id: _id,
   variant = 'info',
   title,
   message,

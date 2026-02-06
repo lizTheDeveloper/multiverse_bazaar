@@ -35,11 +35,11 @@ export function Home() {
     }
   };
 
-  const totalProjects = allProjects?.data?.length || 0;
-  const collaboratorsCount = allProjects?.data?.reduce((acc, project) => {
+  const totalProjects = allProjects?.length || 0;
+  const collaboratorsCount = allProjects?.reduce((acc, project) => {
     return acc + (project.collaborators?.length || 0);
   }, 0) || 0;
-  const graduatedCount = recentIdeas?.data?.filter(idea => idea.status === 'graduated')?.length || 0;
+  const graduatedCount = recentIdeas?.filter(idea => idea.status === 'graduated')?.length || 0;
 
   return (
     <div className="min-h-screen">
@@ -112,15 +112,15 @@ export function Home() {
             </div>
           )}
 
-          {!loadingProjects && featuredProjects?.data && featuredProjects.data.length > 0 && (
+          {!loadingProjects && featuredProjects && featuredProjects.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredProjects.data.map((project) => (
+              {featuredProjects.map((project) => (
                 <ProjectCard key={project.id} project={project} />
               ))}
             </div>
           )}
 
-          {!loadingProjects && (!featuredProjects?.data || featuredProjects.data.length === 0) && (
+          {!loadingProjects && (!featuredProjects || featuredProjects.length === 0) && (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <p className="text-gray-600 mb-4">No featured projects yet.</p>
               <Link to="/projects">
@@ -171,15 +171,15 @@ export function Home() {
               </div>
             )}
 
-            {!loadingIdeas && recentIdeas?.data && recentIdeas.data.length > 0 && (
+            {!loadingIdeas && recentIdeas && recentIdeas.length > 0 && (
               <div className="space-y-4">
-                {recentIdeas.data.map((idea) => (
+                {recentIdeas.map((idea) => (
                   <IdeaCard key={idea.id} idea={idea} />
                 ))}
               </div>
             )}
 
-            {!loadingIdeas && (!recentIdeas?.data || recentIdeas.data.length === 0) && (
+            {!loadingIdeas && (!recentIdeas || recentIdeas.length === 0) && (
               <div className="text-center py-12 bg-white rounded-lg">
                 <p className="text-gray-600 mb-4">No ideas looking for collaborators yet.</p>
                 <Button onClick={handlePostIdea}>Post the First Idea</Button>

@@ -76,7 +76,7 @@ export function useUpvote(projectId: string) {
     },
 
     // On error, rollback to previous state
-    onError: (error, variables, context) => {
+    onError: (_error, _variables, context) => {
       if (context?.previousProject) {
         queryClient.setQueryData(
           projectKeys.detail(projectId),

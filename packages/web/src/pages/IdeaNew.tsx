@@ -1,6 +1,6 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { useCreateIdea } from '../hooks/useIdeas';
-import { IdeaForm, IdeaFormData } from '../components/ideas/IdeaForm';
+import { IdeaForm, type IdeaFormData } from '../components/ideas/IdeaForm';
 
 export function IdeaNew() {
   const navigate = useNavigate();

@@ -137,11 +137,17 @@ export interface SearchResult {
 export interface SearchResponse {
   results: SearchResult[];
   total: number;
+  page: number;
+  per_page: number;
 }
 
 export interface SearchParams {
-  q: string;
+  query: string;
+  q?: string;
   type?: SearchResultType;
+  status?: string;
+  page?: number;
+  per_page?: number;
   limit?: number;
   offset?: number;
 }

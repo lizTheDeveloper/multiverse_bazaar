@@ -19,13 +19,16 @@ import type {
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public statusText: string,
-    public data?: any
-  ) {
+  status: number;
+  statusText: string;
+  data?: any;
+
+  constructor(status: number, statusText: string, data?: any) {
     super(`API Error ${status}: ${statusText}`);
     this.name = 'ApiError';
+    this.status = status;
+    this.statusText = statusText;
+    this.data = data;
   }
 }
 
@@ -35,10 +38,15 @@ async function request<T>(
 ): Promise<T> {
   const token = localStorage.getItem('auth_token');
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
   };
+
+  if (options.headers) {
+    Object.entries(options.headers).forEach(([key, value]) => {
+      headers[key] = value as string;
+    });
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -76,7 +84,7 @@ async function uploadFile<T>(
   const formData = new FormData();
   formData.append(fieldName, file);
 
-  const headers: HeadersInit = {};
+  const headers: Record<string, string> = {};
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -303,3 +311,6 @@ export const search = {
     return request<SearchResponse>(`/search?${queryParams.toString()}`);
   },
 };
+
+// Export search as searchApi for backward compatibility
+export const searchApi = search;

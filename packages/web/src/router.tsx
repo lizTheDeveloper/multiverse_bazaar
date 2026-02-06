@@ -2,24 +2,24 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 // Page imports
-import { HomePage } from '@/pages/HomePage';
-import { ProjectsPage } from '@/pages/ProjectsPage';
-import { ProjectDetailPage } from '@/pages/ProjectDetailPage';
-import { ProjectNewPage } from '@/pages/ProjectNewPage';
-import { ProjectEditPage } from '@/pages/ProjectEditPage';
-import { IdeasPage } from '@/pages/IdeasPage';
-import { IdeaDetailPage } from '@/pages/IdeaDetailPage';
-import { IdeaNewPage } from '@/pages/IdeaNewPage';
-import { IdeaEditPage } from '@/pages/IdeaEditPage';
-import { UserProfilePage } from '@/pages/UserProfilePage';
-import { ProfileEditPage } from '@/pages/ProfileEditPage';
-import { SearchPage } from '@/pages/SearchPage';
-import { LoginPage } from '@/pages/LoginPage';
+import { Home } from '@/pages/Home';
+import { Projects as ProjectsPage } from '@/pages/Projects';
+import { ProjectDetail as ProjectDetailPage } from '@/pages/ProjectDetail';
+import { ProjectNew as ProjectNewPage } from '@/pages/ProjectNew';
+import { ProjectEdit as ProjectEditPage } from '@/pages/ProjectEdit';
+import { Ideas as IdeasPage } from '@/pages/Ideas';
+import { IdeaDetail as IdeaDetailPage } from '@/pages/IdeaDetail';
+import { IdeaNew as IdeaNewPage } from '@/pages/IdeaNew';
+import { IdeaEdit as IdeaEditPage } from '@/pages/IdeaEdit';
+import { Profile as UserProfilePage } from '@/pages/Profile';
+import { ProfileEdit as ProfileEditPage } from '@/pages/ProfileEdit';
+import { Search as SearchPage } from '@/pages/Search';
+import { Login as LoginPage } from '@/pages/Login';
 
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <HomePage />,
+    element: <Home />,
   },
   {
     path: '/projects',

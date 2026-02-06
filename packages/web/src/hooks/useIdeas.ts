@@ -1,13 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ideas as ideasApi } from '../lib/api';
 import type {
-  Idea,
   IdeaFilters,
   CreateIdeaInput,
   UpdateIdeaInput,
-  IdeaInterest,
   ExpressInterestInput,
-  Project,
   CreateProjectInput,
 } from '../types';
 
