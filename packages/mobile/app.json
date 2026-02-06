@@ -15,7 +15,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.multiversebazaar.app"
+      "bundleIdentifier": "com.multiversebazaar.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Multiverse Bazaar needs camera access to take photos for your projects and profile.",
+        "NSPhotoLibraryUsageDescription": "Multiverse Bazaar needs photo library access to select images for your projects and profile."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,10 +27,35 @@
         "backgroundColor": "#6366f1"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.multiversebazaar.app"
+      "package": "com.multiversebazaar.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#6366f1"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Multiverse Bazaar needs photo library access to select images for your projects and profile.",
+          "cameraPermission": "Multiverse Bazaar needs camera access to take photos for your projects and profile."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    }
   }
 }
