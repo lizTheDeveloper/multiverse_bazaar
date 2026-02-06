@@ -1,0 +1,325 @@
+// Multiverse Bazaar - Database Schema
+// PostgreSQL database schema for the Multiverse Bazaar API
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enums
+enum ProjectStatus {
+  BUILDING
+  LAUNCHED
+}
+
+enum CollaboratorRole {
+  CREATOR
+  CONTRIBUTOR
+  ADVISOR
+}
+
+enum IdeaStatus {
+  OPEN
+  CLOSED
+  GRADUATED
+}
+
+enum NotificationType {
+  UPVOTE
+  COLLABORATION_INVITE
+  IDEA_INTEREST
+}
+
+enum Platform {
+  IOS
+  ANDROID
+}
+
+enum DataRequestType {
+  EXPORT
+  DELETION
+}
+
+enum DataRequestStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+}
+
+// Models
+
+model User {
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  name                 String?
+  avatarUrl            String?
+  bio                  String?
+  isExternal           Boolean   @default(false)
+  invitedById          String?
+  karma                Int       @default(0)
+  showEmailOnProfile   Boolean   @default(false)
+  includeInSearch      Boolean   @default(true)
+  showActivityPublicly Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+  deletionRequestedAt  DateTime?
+  anonymizedAt         DateTime?
+
+  // Relations
+  invitedBy            User?                 @relation("UserInvites", fields: [invitedById], references: [id])
+  invitedUsers         User[]                @relation("UserInvites")
+  collaborations       Collaborator[]
+  ideas                Idea[]
+  ideaInterests        IdeaInterest[]
+  upvotes              Upvote[]
+  notifications        Notification[]
+  pushTokens           PushToken[]
+  pendingInvitations   PendingInvitation[]
+  consentRecords       ConsentRecord[]
+  dataRequests         DataRequest[]
+  auditLogs            AuditLog[]
+  refreshTokens        RefreshToken[]
+  loginAttempts        LoginAttempt[]
+
+  @@index([email])
+  @@index([invitedById])
+}
+
+model Project {
+  id          String        @id @default(uuid())
+  title       String
+  description String
+  url         String?
+  repoUrl     String?
+  imageUrl    String?
+  status      ProjectStatus @default(BUILDING)
+  isFeatured  Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  collaborators        Collaborator[]
+  upvotes              Upvote[]
+  graduatedIdeas       Idea[]                @relation("GraduatedToProject")
+  pendingInvitations   PendingInvitation[]
+
+  @@index([status])
+  @@index([isFeatured])
+  @@index([createdAt])
+}
+
+model Collaborator {
+  id        String           @id @default(uuid())
+  userId    String
+  projectId String
+  role      CollaboratorRole
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([userId])
+  @@index([projectId])
+}
+
+model Idea {
+  id                    String     @id @default(uuid())
+  title                 String
+  description           String
+  lookingFor            String
+  creatorId             String
+  status                IdeaStatus @default(OPEN)
+  graduatedToProjectId  String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  // Relations
+  creator             User            @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  graduatedToProject  Project?        @relation("GraduatedToProject", fields: [graduatedToProjectId], references: [id])
+  interests           IdeaInterest[]
+
+  @@index([creatorId])
+  @@index([status])
+  @@index([graduatedToProjectId])
+  @@index([createdAt])
+}
+
+model IdeaInterest {
+  id        String   @id @default(uuid())
+  userId    String
+  ideaId    String
+  message   String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ideaId])
+  @@index([userId])
+  @@index([ideaId])
+}
+
+model Upvote {
+  id        String   @id @default(uuid())
+  userId    String
+  projectId String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([userId])
+  @@index([projectId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model PushToken {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  platform   Platform
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model PendingInvitation {
+  id          String           @id @default(uuid())
+  email       String
+  invitedById String
+  projectId   String
+  role        CollaboratorRole
+  token       String           @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  declinedAt  DateTime?
+  createdAt   DateTime         @default(now())
+
+  // Relations
+  invitedBy User    @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([invitedById])
+  @@index([projectId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model ConsentRecord {
+  id          String    @id @default(uuid())
+  userId      String
+  consentType String
+  granted     Boolean
+  grantedAt   DateTime?
+  revokedAt   DateTime?
+  ipAddress   String?
+  userAgent   String?
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([consentType])
+}
+
+model DataRequest {
+  id          String            @id @default(uuid())
+  userId      String
+  requestType DataRequestType
+  status      DataRequestStatus @default(PENDING)
+  options     Json?
+  requestedAt DateTime          @default(now())
+  completedAt DateTime?
+  metadata    Json?
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([requestedAt])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  action       String
+  resourceType String
+  resourceId   String?
+  ipAddress    String?
+  userAgent    String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([createdAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+}
+
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  email     String
+  userId    String?
+  success   Boolean
+  ip        String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+}
