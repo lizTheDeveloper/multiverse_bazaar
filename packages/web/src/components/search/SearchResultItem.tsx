@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Lightbulb, FolderKanban } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import Badge from '@/components/ui/Badge';
+import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { highlightText } from '@/lib/utils';
 import type { SearchResultItem as SearchResultType } from '@/types';
 
@@ -56,13 +56,13 @@ export function SearchResultItem({ result, query }: SearchResultItemProps) {
                   isProject ? 'text-blue-500' : 'text-yellow-500'
                 }`}
               />
-              <CardTitle className="text-xl">
+              <h3 className="text-xl font-semibold">
                 <span
                   dangerouslySetInnerHTML={{
                     __html: highlightText(result.title, query),
                   }}
                 />
-              </CardTitle>
+              </h3>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <Badge variant="outline" className="text-xs">

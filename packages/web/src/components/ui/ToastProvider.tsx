@@ -1,5 +1,5 @@
-import React, { useState, useCallback, ReactNode } from 'react';
-import { ToastContext, Toast, ToastOptions } from '@/hooks/useToast';
+import React, { useState, useCallback, type ReactNode } from 'react';
+import { ToastContext, type Toast, type ToastOptions } from '@/hooks/useToast';
 import { ToastContainer } from './Toast';
 
 interface ToastProviderProps {

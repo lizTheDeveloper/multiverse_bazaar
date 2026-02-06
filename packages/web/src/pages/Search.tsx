@@ -5,7 +5,7 @@ import { SearchResultItem } from '@/components/search/SearchResultItem';
 import { useSearch } from '@/hooks/useSearch';
 import Button from '@/components/ui/Button';
 import Skeleton from '@/components/ui/Skeleton';
-import { Search, FileQuestion } from 'lucide-react';
+import { Search as SearchIcon, FileQuestion } from 'lucide-react';
 import type { SearchParams } from '@/types';
 
 const RESULTS_PER_PAGE = 20;
@@ -109,7 +109,7 @@ export function Search() {
                     {totalPages > 1 && (
                       <div className="flex items-center justify-center gap-2 pt-4">
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           onClick={() => handlePageChange(page - 1)}
                           disabled={page <= 1}
                         >
@@ -142,7 +142,7 @@ export function Search() {
                             return (
                               <Button
                                 key={pageNum}
-                                variant={page === pageNum ? 'default' : 'outline'}
+                                variant={page === pageNum ? 'primary' : 'secondary'}
                                 size="sm"
                                 onClick={() => handlePageChange(pageNum)}
                               >
@@ -152,7 +152,7 @@ export function Search() {
                           })}
                         </div>
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           onClick={() => handlePageChange(page + 1)}
                           disabled={page >= totalPages}
                         >
@@ -163,7 +163,7 @@ export function Search() {
                   </>
                 ) : (
                   <div className="text-center py-12">
-                    <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                    <SearchIcon className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-xl font-semibold mb-2">No results found</h3>
                     <p className="text-muted-foreground mb-4">
                       We couldn't find any projects or ideas matching your search.
@@ -186,7 +186,7 @@ export function Search() {
 
         {!query && (
           <div className="text-center py-12">
-            <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <SearchIcon className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-xl font-semibold mb-2">Start searching</h3>
             <p className="text-muted-foreground mb-4">
               Search across all projects and ideas in the Multiverse Bazaar
@@ -198,7 +198,7 @@ export function Search() {
                   (term) => (
                     <Button
                       key={term}
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       onClick={() => handleSearch(term)}
                     >

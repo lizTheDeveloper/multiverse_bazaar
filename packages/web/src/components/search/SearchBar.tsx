@@ -66,18 +66,16 @@ export function SearchBar({
           )}
         />
         {query && (
-          <Button
+          <button
             type="button"
-            variant="ghost"
-            size="icon"
             onClick={handleClear}
             className={cn(
-              'absolute right-1 top-1/2 -translate-y-1/2',
+              'absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors',
               size === 'large' ? 'h-8 w-8' : 'h-6 w-6'
             )}
           >
             <X className="h-4 w-4" />
-          </Button>
+          </button>
         )}
       </div>
       <Button type="submit" disabled={!query.trim()}>

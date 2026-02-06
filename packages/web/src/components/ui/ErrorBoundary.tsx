@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import Button from './Button';
 
 interface Props {
@@ -134,7 +134,7 @@ class ErrorBoundary extends Component<Props, State> {
                   <Button onClick={this.handleReset} variant="primary">
                     Try Again
                   </Button>
-                  <Button onClick={this.handleReport} variant="outline">
+                  <Button onClick={this.handleReport} variant="secondary">
                     Report Error
                   </Button>
                   <Button
