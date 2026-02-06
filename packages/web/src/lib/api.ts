@@ -111,12 +111,12 @@ async function uploadFile<T>(
 // Auth API
 export const auth = {
   async login(email: string): Promise<{ user: User; token: string }> {
-    const result = await request<{ user: User; token: string }>('/auth/login', {
+    const result = await request<{ user: User; accessToken: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
-    localStorage.setItem('auth_token', result.token);
-    return result;
+    localStorage.setItem('auth_token', result.accessToken);
+    return { user: result.user, token: result.accessToken };
   },
 
   async me(): Promise<User> {
@@ -160,7 +160,7 @@ export const projects = {
 
   async update(id: string, data: UpdateProjectInput): Promise<Project> {
     return request<Project>(`/projects/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
@@ -184,7 +184,7 @@ export const projects = {
   },
 
   async uploadImage(file: File): Promise<{ url: string }> {
-    return uploadFile<{ url: string }>('/projects/upload-image', file, 'image');
+    return uploadFile<{ url: string }>('/uploads/image', file, 'image');
   },
 };
 
@@ -244,7 +244,7 @@ export const ideas = {
 
   async update(id: string, data: UpdateIdeaInput): Promise<Idea> {
     return request<Idea>(`/ideas/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
@@ -256,14 +256,14 @@ export const ideas = {
   },
 
   async getInterests(id: string): Promise<IdeaInterest[]> {
-    return request<IdeaInterest[]>(`/ideas/${id}/interests`);
+    return request<IdeaInterest[]>(`/ideas/${id}/interest`);
   },
 
   async expressInterest(
     id: string,
     data: ExpressInterestInput
   ): Promise<IdeaInterest> {
-    return request<IdeaInterest>(`/ideas/${id}/interests`, {
+    return request<IdeaInterest>(`/ideas/${id}/interest`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -289,13 +289,13 @@ export const users = {
 
   async update(data: Partial<User>): Promise<User> {
     return request<User>('/users/me', {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
   async uploadAvatar(file: File): Promise<{ url: string }> {
-    return uploadFile<{ url: string }>('/users/me/avatar', file, 'avatar');
+    return uploadFile<{ url: string }>('/uploads/avatar', file, 'avatar');
   },
 };
 
