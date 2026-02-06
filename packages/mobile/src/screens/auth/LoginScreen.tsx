@@ -14,7 +14,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { colors, spacing, typography } from '../../theme';
 
 export function LoginScreen() {
-  const { login } = useAuth();
+  const { login, continueAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +33,10 @@ export function LoginScreen() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function handleGuestMode() {
+    await continueAsGuest();
   }
 
   return (
@@ -85,6 +89,19 @@ export function LoginScreen() {
               <Text style={styles.buttonText}>
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Text>
+            </TouchableOpacity>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.guestButton}
+              onPress={handleGuestMode}
+            >
+              <Text style={styles.guestButtonText}>Continue as Guest</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -156,5 +173,30 @@ const styles = StyleSheet.create({
   buttonText: {
     ...typography.button,
     color: colors.white,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginHorizontal: spacing.md,
+  },
+  guestButton: {
+    backgroundColor: colors.gray100,
+    borderRadius: 8,
+    padding: spacing.buttonPaddingVertical,
+    alignItems: 'center',
+  },
+  guestButtonText: {
+    ...typography.button,
+    color: colors.textSecondary,
   },
 });
