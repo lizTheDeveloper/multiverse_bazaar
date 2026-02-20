@@ -29,7 +29,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.3",
     "dotenv": "^16.4.7",
-    "hono": "^4.11.8",
+    "hono": "^4.11.10",
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^3.0.3",
     "pino": "^9.5.0",
