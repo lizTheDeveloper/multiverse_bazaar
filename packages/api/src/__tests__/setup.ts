@@ -6,14 +6,22 @@
 import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { Hono } from 'hono';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
+import bcrypt from 'bcryptjs';
 import { setupContainer } from '../infra/container.js';
 import { configureApp } from '../app.js';
 import type { Container } from '../infra/container.js';
+
+const { Pool } = pg;
+
+const TEST_PASSWORD = 'TestPassword123!';
 
 /**
  * Test database client instance
  */
 let testDb: PrismaClient;
+let testPool: pg.Pool;
 
 /**
  * Test app instance
@@ -60,14 +68,10 @@ export function getTestContainer(): Container {
  * Creates test database connection and app instance
  */
 export async function setupTestEnvironment(): Promise<void> {
-  // Create test database client
-  testDb = new PrismaClient({
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
-  });
+  // Create test database client using adapter-pg (required by Prisma v7 client engine)
+  testPool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const adapter = new PrismaPg(testPool);
+  testDb = new PrismaClient({ adapter });
 
   // Connect to database
   await testDb.$connect();
@@ -84,6 +88,9 @@ export async function setupTestEnvironment(): Promise<void> {
 export async function teardownTestEnvironment(): Promise<void> {
   if (testDb) {
     await testDb.$disconnect();
+  }
+  if (testPool) {
+    await testPool.end();
   }
 }
 
@@ -142,10 +149,13 @@ export async function createTestUser(
 
   const userEmail = email || `test-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
 
+  const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
+
   return db.user.create({
     data: {
       email: userEmail,
       name: name || 'Test User',
+      passwordHash,
     },
   });
 }
@@ -177,7 +187,7 @@ export async function getTestToken(email?: string): Promise<{
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ email: userEmail }),
+    body: JSON.stringify({ email: userEmail, password: TEST_PASSWORD }),
   });
 
   if (!response.ok) {
