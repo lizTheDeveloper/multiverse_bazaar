@@ -9,18 +9,19 @@ let prisma: PrismaClient | null = null;
 
 /**
  * Get or create the PrismaClient singleton instance
+ * Uses DATABASE_URL from environment for connection.
  * @returns PrismaClient instance
  */
 export function getPrismaClient(): PrismaClient {
   if (!prisma) {
-    prisma = new PrismaClient({
-      log: process.env.NODE_ENV === 'development'
-        ? ['query', 'info', 'warn', 'error']
-        : ['warn', 'error'],
-    });
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
 
-    // Note: Prisma event-based logging requires specific configuration in PrismaClient options
-    // For now, we rely on the log levels above
+    prisma = new PrismaClient({
+      datasourceUrl: connectionString,
+    });
   }
 
   return prisma;
