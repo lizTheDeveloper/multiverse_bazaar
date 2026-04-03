@@ -1,17 +1,15 @@
-# Stage 1: Install dependencies
+# Stage 1: Install dependencies (all, including devDeps for build)
 FROM node:20-slim AS deps
 WORKDIR /app
 
-# Copy workspace root package files
 COPY package.json package-lock.json ./
 COPY packages/api/package.json ./packages/api/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install all dependencies (including devDependencies for tsx/prisma)
 RUN npm ci
 
-# Stage 2: Generate Prisma client
-FROM node:20-slim AS prepare
+# Stage 2: Generate Prisma client and bundle with esbuild
+FROM node:20-slim AS build
 WORKDIR /app
 
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
@@ -22,37 +20,56 @@ COPY package.json package-lock.json ./
 COPY packages/shared/ ./packages/shared/
 COPY packages/api/ ./packages/api/
 
-# Generate Prisma client (run from packages/api where prisma.config.ts lives)
+# Generate Prisma client
 WORKDIR /app/packages/api
 RUN npx prisma generate
-WORKDIR /app
 
-# Stage 3: Production image (uses tsx to run TypeScript directly)
+# Bundle the API with esbuild
+WORKDIR /app
+RUN npx esbuild packages/api/src/main.ts \
+  --bundle \
+  --platform=node \
+  --target=node20 \
+  --format=esm \
+  --outfile=dist/server.mjs \
+  --external:@prisma/client \
+  --external:@prisma/adapter-pg \
+  --external:pg \
+  --external:pino \
+  --external:pino-pretty \
+  --external:bcryptjs \
+  --external:jsonwebtoken \
+  --external:dotenv
+
+# Stage 3: Production image
 FROM node:20-slim AS production
 WORKDIR /app
 
 RUN apt-get update -y && apt-get install -y openssl curl wget && rm -rf /var/lib/apt/lists/*
 
-# Copy full workspace (tsx runs TS source directly, no build step needed)
 COPY package.json package-lock.json ./
 COPY packages/api/package.json ./packages/api/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install production dependencies
-RUN npm ci --omit=dev && npm install -g tsx
+# Install production dependencies only
+RUN npm ci --omit=dev
 
 ENV NODE_ENV=production
 
-# Copy source code
-COPY packages/shared/ ./packages/shared/
-COPY packages/api/ ./packages/api/
+# Copy bundled server
+COPY --from=build /app/dist/server.mjs ./dist/server.mjs
+
+# Copy Prisma schema and config (needed for prisma db push)
+COPY packages/api/prisma/ ./packages/api/prisma/
+COPY packages/api/prisma.config.ts ./packages/api/prisma.config.ts
 
 # Copy generated Prisma client
-COPY --from=prepare /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=prepare /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 EXPOSE 3000
 
-# Run migrations then start the server using tsx
-# Run from packages/api dir so prisma.config.ts is found
-CMD ["sh", "-c", "cd packages/api && npx prisma db push --accept-data-loss && cd /app && tsx packages/api/src/main.ts"]
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+CMD ["sh", "-c", "cd packages/api && npx prisma db push --accept-data-loss && cd /app && node dist/server.mjs"]
