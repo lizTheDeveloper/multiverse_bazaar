@@ -38,8 +38,8 @@ COPY package.json package-lock.json ./
 COPY packages/api/package.json ./packages/api/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install production dependencies (tsx is now in dependencies)
-RUN npm ci --omit=dev
+# Install production dependencies
+RUN npm ci --omit=dev && npm install -g tsx
 
 ENV NODE_ENV=production
 
@@ -55,4 +55,4 @@ EXPOSE 3000
 
 # Run migrations then start the server using tsx
 # Run from packages/api dir so prisma.config.ts is found
-CMD ["sh", "-c", "cd packages/api && npx prisma db push --accept-data-loss && cd /app && npx tsx packages/api/src/main.ts"]
+CMD ["sh", "-c", "cd packages/api && npx prisma db push --accept-data-loss && cd /app && tsx packages/api/src/main.ts"]
