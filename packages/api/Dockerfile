@@ -38,8 +38,8 @@ COPY package.json package-lock.json ./
 COPY packages/api/package.json ./packages/api/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install all dependencies including devDeps (tsx is needed at runtime)
-RUN npm ci
+# Install production dependencies (tsx is now in dependencies)
+RUN npm ci --omit=dev
 
 ENV NODE_ENV=production
 
