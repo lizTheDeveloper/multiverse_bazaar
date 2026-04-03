@@ -42,8 +42,8 @@ COPY packages/api/ ./packages/api/
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
-# Install tsx globally for runtime TypeScript execution
-RUN npm install -g tsx
+# Install tsx locally for runtime TypeScript execution
+RUN npm install tsx
 
 ENV NODE_ENV=production
 
@@ -52,4 +52,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
 
-CMD ["sh", "-c", "cd packages/api && npx prisma db push --accept-data-loss && cd /app && NODE_PATH=/usr/local/lib/node_modules node --import tsx/esm packages/api/src/main.ts"]
+CMD ["sh", "-c", "cd packages/api && npx prisma db push --accept-data-loss && cd /app && node --import tsx/esm packages/api/src/main.ts"]
