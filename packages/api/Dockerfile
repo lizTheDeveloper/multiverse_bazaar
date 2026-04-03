@@ -31,7 +31,7 @@ WORKDIR /app
 FROM node:20-slim AS production
 WORKDIR /app
 
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 
