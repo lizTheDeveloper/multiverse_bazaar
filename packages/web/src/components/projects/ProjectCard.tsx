@@ -27,8 +27,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
     }
   };
 
-  const visibleCollaborators = project.collaborators.slice(0, 3);
-  const remainingCount = project.collaborators.length - 3;
+  const collaborators = project.collaborators || [];
+  const visibleCollaborators = collaborators.slice(0, 3);
+  const remainingCount = collaborators.length - 3;
 
   // Generate a gradient for projects without images
   const gradients = [

@@ -36,9 +36,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initializeAuth();
   }, []);
 
-  const login = async (email: string) => {
+  const login = async (email: string, password: string) => {
     try {
-      const { user: userData, token } = await authApi.login(email);
+      const { user: userData, token } = await authApi.login(email, password);
+      localStorage.setItem('auth_token', token);
+      setUser(userData);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const register = async (email: string, password: string, name?: string) => {
+    try {
+      const { user: userData, token } = await authApi.register(email, password, name);
       localStorage.setItem('auth_token', token);
       setUser(userData);
     } catch (error) {
@@ -60,6 +70,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     isAuthenticated: !!user,
     login,
+    register,
     logout,
   };
 

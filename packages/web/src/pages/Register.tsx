@@ -6,15 +6,20 @@ import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/api';
 
-const loginSchema = z.object({
+const registerSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').optional().or(z.literal('')),
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string().min(8, 'Please confirm your password'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
 });
 
-type LoginFormData = z.infer<typeof loginSchema>;
+type RegisterFormData = z.infer<typeof registerSchema>;
 
-export function Login() {
-  const { login, isAuthenticated } = useAuth();
+export function Register() {
+  const { register: registerUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnUrl = searchParams.get('returnUrl') || '/';
@@ -24,8 +29,8 @@ export function Login() {
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
   });
 
   useEffect(() => {
@@ -34,15 +39,21 @@ export function Login() {
     }
   }, [isAuthenticated, navigate, returnUrl]);
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: RegisterFormData) => {
     try {
-      await login(data.email, data.password);
+      await registerUser(data.email, data.password, data.name || undefined);
       navigate(returnUrl, { replace: true });
     } catch (error) {
       if (error instanceof ApiError) {
-        setError('root', {
-          message: error.data?.message || 'Login failed. Please try again.',
-        });
+        if (error.status === 409) {
+          setError('email', {
+            message: 'An account with this email already exists.',
+          });
+        } else {
+          setError('root', {
+            message: error.data?.message || 'Registration failed. Please try again.',
+          });
+        }
       } else {
         setError('root', {
           message: 'An unexpected error occurred. Please try again.',
@@ -56,15 +67,31 @@ export function Login() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+            Create your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Welcome to Multiverse Bazaar
+            Join Multiverse Bazaar
           </p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="rounded-md shadow-sm space-y-4">
+            <div>
+              <label htmlFor="name" className="sr-only">
+                Name (optional)
+              </label>
+              <input
+                {...register('name')}
+                id="name"
+                type="text"
+                autoComplete="name"
+                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Name (optional)"
+              />
+              {errors.name && (
+                <div className="text-red-600 text-sm mt-1">{errors.name.message}</div>
+              )}
+            </div>
             <div>
               <label htmlFor="email" className="sr-only">
                 Email address
@@ -89,12 +116,28 @@ export function Login() {
                 {...register('password')}
                 id="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Password"
               />
               {errors.password && (
                 <div className="text-red-600 text-sm mt-1">{errors.password.message}</div>
+              )}
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="sr-only">
+                Confirm Password
+              </label>
+              <input
+                {...register('confirmPassword')}
+                id="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Confirm password"
+              />
+              {errors.confirmPassword && (
+                <div className="text-red-600 text-sm mt-1">{errors.confirmPassword.message}</div>
               )}
             </div>
           </div>
@@ -111,18 +154,18 @@ export function Login() {
               disabled={isSubmitting}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Signing in...' : 'Sign in'}
+              {isSubmitting ? 'Creating account...' : 'Create account'}
             </button>
           </div>
 
           <div className="text-center space-y-2">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              Already have an account?{' '}
               <Link
-                to="/register"
+                to="/login"
                 className="text-indigo-600 hover:text-indigo-500 font-medium"
               >
-                Sign up
+                Sign in
               </Link>
             </p>
             <Link

@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import Button from './Button';
+import { reportError } from '../../lib/error-reporter';
 
 interface Props {
   children: ReactNode;
@@ -38,6 +39,9 @@ class ErrorBoundary extends Component<Props, State> {
       errorInfo,
     });
 
+    // Report to Autonomous Error Resolver
+    reportError(error, { type: 'react-error-boundary' }, errorInfo.componentStack ?? undefined);
+
     // Call optional error handler
     this.props.onError?.(error, errorInfo);
   }
@@ -53,13 +57,14 @@ class ErrorBoundary extends Component<Props, State> {
   handleReport = () => {
     const { error, errorInfo } = this.state;
 
-    // In a real app, this would send to an error tracking service
-    console.log('Reporting error:', {
-      error: error?.toString(),
-      stack: error?.stack,
-      componentStack: errorInfo?.componentStack,
-      timestamp: new Date().toISOString(),
-    });
+    if (error) {
+      // Report to Autonomous Error Resolver
+      reportError(
+        error,
+        { type: 'user-reported-error' },
+        errorInfo?.componentStack ?? undefined
+      );
+    }
 
     alert('Error report sent. Thank you for helping us improve!');
   };

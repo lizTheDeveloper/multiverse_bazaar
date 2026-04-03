@@ -22,7 +22,11 @@ const statusConfig = {
 };
 
 export function IdeaCard({ idea }: IdeaCardProps) {
-  const status = statusConfig[idea.status];
+  // Normalize status to lowercase for statusConfig lookup
+  const normalizedStatus = idea.status?.toLowerCase() as keyof typeof statusConfig;
+  const status = statusConfig[normalizedStatus] || statusConfig.open;
+  const creator = idea.creator || { name: 'Unknown', avatar_url: null };
+  const creatorName = creator.name || 'Unknown';
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
@@ -54,19 +58,19 @@ export function IdeaCard({ idea }: IdeaCardProps) {
           to={`/users/${idea.creator_id}`}
           className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
         >
-          {idea.creator.avatar_url && (
+          {creator.avatar_url && (
             <img
-              src={idea.creator.avatar_url}
-              alt={idea.creator.name}
+              src={creator.avatar_url}
+              alt={creatorName}
               className="w-6 h-6 rounded-full"
             />
           )}
-          {!idea.creator.avatar_url && (
+          {!creator.avatar_url && (
             <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600">
-              {idea.creator.name.charAt(0).toUpperCase()}
+              {creatorName.charAt(0).toUpperCase()}
             </div>
           )}
-          <span className="font-medium">{idea.creator.name}</span>
+          <span className="font-medium">{creatorName}</span>
         </Link>
 
         <div className="flex items-center gap-4 text-gray-500">
