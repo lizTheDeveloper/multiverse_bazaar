@@ -28,15 +28,11 @@ FROM nginx:alpine AS production
 COPY --from=build /app/packages/web/dist /usr/share/nginx/html
 
 # SPA routing: serve index.html for all non-file routes
+# API calls go directly to the API domain via VITE_API_URL (no proxy needed)
 RUN printf 'server {\n\
     listen 80;\n\
     root /usr/share/nginx/html;\n\
     index index.html;\n\
-    location /api/ {\n\
-        proxy_pass http://api:3000;\n\
-        proxy_set_header Host $host;\n\
-        proxy_set_header X-Real-IP $remote_addr;\n\
-    }\n\
     location / {\n\
         try_files $uri $uri/ /index.html;\n\
     }\n\
