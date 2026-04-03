@@ -52,4 +52,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
 
-CMD ["sh", "-c", "cd packages/api && npx prisma db push --accept-data-loss && cd /app && node --import tsx/esm packages/api/src/main.ts"]
+CMD ["sh", "-c", "cd packages/api && npx prisma db push --accept-data-loss && cd /app && NODE_PATH=/usr/local/lib/node_modules node --import tsx/esm packages/api/src/main.ts"]
