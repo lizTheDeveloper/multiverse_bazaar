@@ -31,17 +31,17 @@ WORKDIR /app
 FROM node:20-slim AS production
 WORKDIR /app
 
-RUN apt-get update -y && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
-
-ENV NODE_ENV=production
+RUN apt-get update -y && apt-get install -y openssl curl wget && rm -rf /var/lib/apt/lists/*
 
 # Copy full workspace (tsx runs TS source directly, no build step needed)
 COPY package.json package-lock.json ./
 COPY packages/api/package.json ./packages/api/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install all dependencies (tsx is a devDep needed at runtime)
+# Install all dependencies including devDeps (tsx is needed at runtime)
 RUN npm ci
+
+ENV NODE_ENV=production
 
 # Copy source code
 COPY packages/shared/ ./packages/shared/
