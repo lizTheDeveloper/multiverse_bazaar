@@ -1,15 +1,20 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 import { getLogger } from './logger.js';
+
+const { Pool } = pg;
 
 /**
  * PrismaClient singleton instance
  * Ensures only one connection pool is created across the application
  */
 let prisma: PrismaClient | null = null;
+let pool: pg.Pool | null = null;
 
 /**
  * Get or create the PrismaClient singleton instance
- * Uses DATABASE_URL from environment for connection.
+ * Uses @prisma/adapter-pg for Prisma v7 compatibility (no url in schema).
  * @returns PrismaClient instance
  */
 export function getPrismaClient(): PrismaClient {
@@ -19,7 +24,9 @@ export function getPrismaClient(): PrismaClient {
       throw new Error('DATABASE_URL environment variable is not set');
     }
 
-    prisma = new PrismaClient();
+    pool = new Pool({ connectionString });
+    const adapter = new PrismaPg(pool);
+    prisma = new PrismaClient({ adapter });
   }
 
   return prisma;

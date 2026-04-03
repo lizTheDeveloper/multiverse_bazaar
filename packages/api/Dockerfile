@@ -22,7 +22,7 @@ COPY packages/shared/ ./packages/shared/
 COPY packages/api/ ./packages/api/
 
 WORKDIR /app/packages/api
-RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
+RUN npx prisma generate
 WORKDIR /app
 
 # Stage 3: Production image
@@ -52,4 +52,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
 
-CMD ["sh", "-c", "cd packages/api && npx prisma db push --accept-data-loss && cd /app && tsx packages/api/src/main.ts"]
+CMD ["sh", "-c", "cd packages/api && npx prisma db push --accept-data-loss && cd /app && node --import tsx/esm packages/api/src/main.ts"]
