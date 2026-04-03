@@ -26,7 +26,7 @@ RUN npx prisma generate
 
 # Bundle the API with esbuild
 WORKDIR /app
-RUN npx esbuild packages/api/src/main.ts \
+RUN npm install -g esbuild && esbuild packages/api/src/main.ts \
   --bundle \
   --platform=node \
   --target=node20 \
