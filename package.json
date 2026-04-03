@@ -12,8 +12,13 @@
   },
   "scripts": {
     "api": "npm run dev -w @multiverse-bazaar/api",
+    "web": "npm run dev -w web",
+    "dev": "concurrently \"npm run api\" \"npm run web\"",
     "test": "npm run test -w @multiverse-bazaar/api",
     "test:coverage": "npm run test:coverage -w @multiverse-bazaar/api",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
     "build": "npm run build -w @multiverse-bazaar/api",
     "typecheck": "tsc --noEmit -p packages/api && tsc --noEmit -p packages/shared",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
@@ -22,14 +27,22 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\""
   },
   "dependencies": {
-    "@fission-ai/openspec": "^1.1.1"
+    "@fission-ai/openspec": "1.1.1"
+  },
+  "overrides": {
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
-    "eslint": "^8.56.0",
-    "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.2.5",
-    "typescript": "^5.7.2"
+    "@playwright/mcp": "0.0.64",
+    "@playwright/test": "1.58.2",
+    "@typescript-eslint/eslint-plugin": "6.21.0",
+    "@typescript-eslint/parser": "6.21.0",
+    "concurrently": "9.2.1",
+    "eslint": "8.56.0",
+    "eslint-config-prettier": "9.1.0",
+    "playwright": "1.58.2",
+    "prettier": "3.2.5",
+    "typescript": "5.7.2"
   }
 }
