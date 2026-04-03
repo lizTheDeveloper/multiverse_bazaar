@@ -22,7 +22,7 @@ COPY packages/shared/ ./packages/shared/
 COPY packages/api/ ./packages/api/
 
 WORKDIR /app/packages/api
-RUN npx prisma generate
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 WORKDIR /app
 
 # Stage 3: Production image

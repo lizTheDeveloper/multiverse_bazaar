@@ -19,9 +19,7 @@ export function getPrismaClient(): PrismaClient {
       throw new Error('DATABASE_URL environment variable is not set');
     }
 
-    prisma = new PrismaClient({
-      datasourceUrl: connectionString,
-    });
+    prisma = new PrismaClient();
   }
 
   return prisma;
