@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bazaar
+      POSTGRES_PASSWORD: bazaar_dev
+      POSTGRES_DB: multiverse_bazaar
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bazaar"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      DATABASE_URL: postgresql://bazaar:bazaar_dev@db:5432/multiverse_bazaar
+      JWT_SECRET: this-is-a-development-jwt-secret-that-is-at-least-64-characters-long-for-production-mode
+      CORS_ORIGINS: http://localhost:8888,http://localhost:8080
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    ports:
+      - "8888:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
