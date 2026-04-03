@@ -3,10 +3,11 @@
  * Handles all database operations related to audit logs and login history.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Result, Ok, Err, InternalError } from '@multiverse-bazaar/shared';
 import {
   AuditLog,
+  AuditAction,
   CreateAuditLogRequest,
   AuditContext,
   AuditLogQuery,
@@ -47,7 +48,7 @@ export class AuditRepository {
       return Ok({
         id: auditLog.id,
         userId: auditLog.userId,
-        action: auditLog.action as any,
+        action: auditLog.action as AuditAction,
         resourceType: auditLog.resourceType,
         resourceId: auditLog.resourceId,
         ipAddress: auditLog.ipAddress,
@@ -103,7 +104,7 @@ export class AuditRepository {
         logs.map((log) => ({
           id: log.id,
           userId: log.userId,
-          action: log.action as any,
+          action: log.action as AuditAction,
           resourceType: log.resourceType,
           resourceId: log.resourceId,
           ipAddress: log.ipAddress,
@@ -135,7 +136,7 @@ export class AuditRepository {
       const skip = (page - 1) * limit;
 
       // Build where clause
-      const where: any = {};
+      const where: Prisma.AuditLogWhereInput = {};
 
       if (query.userId) {
         where.userId = query.userId;
@@ -178,7 +179,7 @@ export class AuditRepository {
         logs: logs.map((log) => ({
           id: log.id,
           userId: log.userId,
-          action: log.action as any,
+          action: log.action as AuditAction,
           resourceType: log.resourceType,
           resourceId: log.resourceId,
           ipAddress: log.ipAddress,

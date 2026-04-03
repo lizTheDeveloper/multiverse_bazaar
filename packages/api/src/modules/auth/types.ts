@@ -36,10 +36,11 @@ export interface RegisterRequest {
 }
 
 /**
- * Login response with access token and user profile
+ * Login response with access token, refresh token, and user profile
  */
 export interface LoginResponse {
   accessToken: string;
+  refreshToken: string;
   user: UserProfile;
 }
 
@@ -52,10 +53,33 @@ export interface RefreshRequest {
 }
 
 /**
- * Refresh token response with new access token
+ * Refresh token response with new access token, refresh token, and user
  */
 export interface RefreshResponse {
   accessToken: string;
+  refreshToken: string;
+  user: UserProfile;
+}
+
+/**
+ * Magic link request payload
+ */
+export interface MagicLinkRequest {
+  email: string;
+}
+
+/**
+ * Magic link response
+ */
+export interface MagicLinkResponse {
+  message: string;
+}
+
+/**
+ * Magic link verification request
+ */
+export interface MagicLinkVerifyRequest {
+  token: string;
 }
 
 /**

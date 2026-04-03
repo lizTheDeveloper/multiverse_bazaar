@@ -6,7 +6,7 @@
 import { Hono } from 'hono';
 import { isOk } from '@multiverse-bazaar/shared';
 import { AuthService } from './service.js';
-import { loginSchema, registerSchema, refreshSchema } from './schemas.js';
+import { loginSchema, registerSchema, refreshSchema, magicLinkSchema, magicLinkVerifySchema } from './schemas.js';
 import { authMiddleware } from './middleware.js';
 import { Logger } from '../../infra/logger.js';
 
@@ -61,7 +61,21 @@ export function createAuthRoutes(authService: AuthService): Hono<AuthContext> {
     const logger = c.get('logger');
 
     // Parse and validate request body
-    const body = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = loginSchema.safeParse(body);
 
     if (!validation.success) {
@@ -108,12 +122,13 @@ export function createAuthRoutes(authService: AuthService): Hono<AuthContext> {
       );
     }
 
-    const { accessToken, user } = result.value;
+    const { accessToken, refreshToken, user } = result.value;
 
     logger.info({ userId: user.id }, 'Login successful');
 
     return c.json({
       accessToken,
+      refreshToken,
       user,
     });
   });
@@ -144,7 +159,21 @@ export function createAuthRoutes(authService: AuthService): Hono<AuthContext> {
     const logger = c.get('logger');
 
     // Parse and validate request body
-    const body = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = registerSchema.safeParse(body);
 
     if (!validation.success) {
@@ -191,12 +220,13 @@ export function createAuthRoutes(authService: AuthService): Hono<AuthContext> {
       );
     }
 
-    const { accessToken, user } = result.value;
+    const { accessToken, refreshToken, user } = result.value;
 
     logger.info({ userId: user.id }, 'Registration successful');
 
     return c.json({
       accessToken,
+      refreshToken,
       user,
     });
   });
@@ -275,8 +305,22 @@ export function createAuthRoutes(authService: AuthService): Hono<AuthContext> {
   router.post('/refresh', async (c) => {
     const logger = c.get('logger');
 
-    // Parse request body (empty validation for now)
-    const body = await c.req.json().catch(() => ({}));
+    // Parse request body and validate
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = refreshSchema.safeParse(body);
 
     if (!validation.success) {
@@ -305,8 +349,7 @@ export function createAuthRoutes(authService: AuthService): Hono<AuthContext> {
 
     // Also check if it's in the request body (alternative for testing)
     if (!refreshToken) {
-      const body = await c.req.json().catch(() => ({}));
-      refreshToken = body.refreshToken;
+      refreshToken = validation.data.refreshToken;
     }
 
     if (!refreshToken) {
@@ -344,12 +387,185 @@ export function createAuthRoutes(authService: AuthService): Hono<AuthContext> {
       );
     }
 
-    const { accessToken } = result.value;
+    const { accessToken, refreshToken: newRefreshToken, user } = result.value;
 
-    logger.info('Token refresh successful');
+    logger.info({ userId: user.id }, 'Token refresh successful');
 
     return c.json({
       accessToken,
+      refreshToken: newRefreshToken,
+      user,
+    });
+  });
+
+  /**
+   * POST /auth/magic-link
+   * Request a magic link for passwordless authentication
+   *
+   * Request body:
+   * {
+   *   "email": "user@example.com"
+   * }
+   *
+   * Response:
+   * {
+   *   "message": "If an account exists for this email, a magic link has been sent."
+   * }
+   */
+  router.post('/magic-link', async (c) => {
+    const logger = c.get('logger');
+
+    // Parse and validate request body
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
+    const validation = magicLinkSchema.safeParse(body);
+
+    if (!validation.success) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request body',
+            fieldErrors: validation.error.errors.map(err => ({
+              field: err.path.join('.'),
+              message: err.message,
+            })),
+          },
+        },
+        400
+      );
+    }
+
+    const { email } = validation.data;
+
+    logger.info({ email }, 'Magic link request');
+
+    const result = await authService.sendMagicLink(email);
+
+    if (!isOk(result)) {
+      const error = result.error;
+      logger.warn({ email, error: error.message }, 'Magic link generation failed');
+
+      const statusCode = error.statusCode as 400 | 401 | 403 | 404 | 429 | 500;
+
+      return c.json(
+        {
+          error: {
+            code: error.code,
+            message: error.message,
+            ...(error.details && { details: error.details }),
+          },
+        },
+        statusCode
+      );
+    }
+
+    return c.json(result.value);
+  });
+
+  /**
+   * POST /auth/magic-link/verify
+   * Verify a magic link token and authenticate the user
+   *
+   * Request body:
+   * {
+   *   "token": "magic_link_token_here"
+   * }
+   *
+   * Response:
+   * {
+   *   "accessToken": "jwt.token.here",
+   *   "refreshToken": "refresh_token_here",
+   *   "user": {
+   *     "id": "uuid",
+   *     "email": "user@example.com",
+   *     "name": "User Name",
+   *     ...
+   *   }
+   * }
+   */
+  router.post('/magic-link/verify', async (c) => {
+    const logger = c.get('logger');
+
+    // Parse and validate request body
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
+    const validation = magicLinkVerifySchema.safeParse(body);
+
+    if (!validation.success) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request body',
+            fieldErrors: validation.error.errors.map(err => ({
+              field: err.path.join('.'),
+              message: err.message,
+            })),
+          },
+        },
+        400
+      );
+    }
+
+    const { token } = validation.data;
+
+    logger.info('Magic link verification attempt');
+
+    const result = await authService.verifyMagicLink(token);
+
+    if (!isOk(result)) {
+      const error = result.error;
+      logger.warn({ error: error.message }, 'Magic link verification failed');
+
+      const statusCode = error.statusCode as 400 | 401 | 403 | 404 | 429 | 500;
+
+      return c.json(
+        {
+          error: {
+            code: error.code,
+            message: error.message,
+            ...(error.details && { details: error.details }),
+          },
+        },
+        statusCode
+      );
+    }
+
+    const { accessToken, refreshToken, user } = result.value;
+
+    logger.info({ userId: user.id }, 'Magic link verification successful');
+
+    return c.json({
+      accessToken,
+      refreshToken,
+      user,
     });
   });
 

@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { getTestApp, getTestToken, createTestUser, createTestIdea, createTestProject, getTestDb } from './setup.js';
+import type { IdeaResponse } from './types.js';
 
 describe('Ideas API', () => {
   describe('POST /api/v1/ideas', () => {
@@ -126,7 +127,7 @@ describe('Ideas API', () => {
 
       const data = await response.json();
       expect(data.total).toBe(2);
-      expect(data.ideas.every((i: any) => i.status === 'OPEN')).toBe(true);
+      expect(data.ideas.every((i: IdeaResponse) => i.status === 'OPEN')).toBe(true);
     });
 
     it('should return empty array when no ideas exist', async () => {

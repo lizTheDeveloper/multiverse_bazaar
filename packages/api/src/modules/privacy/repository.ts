@@ -3,7 +3,7 @@
  * Handles all database operations related to data exports, deletion, and consent.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Result, Ok, Err, NotFoundError, InternalError } from '@multiverse-bazaar/shared';
 import {
   DataExportRequest,
@@ -106,7 +106,7 @@ export class PrivacyRepository {
     }
   ): Promise<Result<DataExportRequest, InternalError>> {
     try {
-      const updateData: any = {};
+      const updateData: Prisma.DataRequestUpdateInput = {};
       if (data.status) {
         updateData.status = data.status;
       }
@@ -185,7 +185,7 @@ export class PrivacyRepository {
           userId,
           requestType: 'DELETION',
           status: 'PENDING',
-          options: options as any,
+          options: options as unknown as Prisma.InputJsonValue,
         },
       });
 

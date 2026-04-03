@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { getTestApp, getTestToken, createTestUser, createTestProject, getTestDb } from './setup.js';
+import type { ProjectResponse } from './types.js';
 
 describe('Projects API', () => {
   describe('POST /api/v1/projects', () => {
@@ -194,7 +195,7 @@ describe('Projects API', () => {
 
       const data = await response.json();
       expect(data.total).toBe(2);
-      expect(data.projects.every((p: any) => p.status === 'BUILDING')).toBe(true);
+      expect(data.projects.every((p: ProjectResponse) => p.status === 'BUILDING')).toBe(true);
     });
 
     it('should filter projects by creator', async () => {

@@ -4,6 +4,7 @@
  */
 
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import type { Container } from '../infra/container.js';
 import type { Logger } from '../infra/logger.js';
 
@@ -18,6 +19,7 @@ import { createNotificationRoutes } from '../modules/notifications/routes.js';
 import { createSearchRoutes } from '../modules/search/routes.js';
 import { createUploadRoutes } from '../modules/uploads/routes.js';
 import { createPrivacyRoutes } from '../modules/privacy/routes.js';
+import { errorRoutes } from '../modules/errors/routes.js';
 
 // Import services
 import { AuthService } from '../modules/auth/service.js';
@@ -103,7 +105,7 @@ export function registerRoutes(container: Container): Hono<{ Variables: Variable
   router.route('/auth', authRoutes);
 
   // User routes (mostly authenticated)
-  const userRoutes = createUserRoutes(userService, authMiddleware);
+  const userRoutes = createUserRoutes(userService, authMiddleware(authService));
   router.route('/users', userRoutes);
 
   // Project routes (authenticated)
@@ -144,6 +146,9 @@ export function registerRoutes(container: Container): Hono<{ Variables: Variable
   const privacyRoutes = createPrivacyRoutes(privacyService, authService);
   router.route('/me/privacy', privacyRoutes);
 
+  // Error reporting routes (public - for frontend error submission)
+  router.route('/errors', errorRoutes);
+
   return router;
 }
 
@@ -154,7 +159,7 @@ export function registerRoutes(container: Container): Hono<{ Variables: Variable
  * @returns Hono middleware handler
  */
 export function notFoundHandler() {
-  return (c: any) => {
+  return (c: Context<{ Variables: Variables }>) => {
     const requestId = c.get('requestId') || 'unknown';
     const logger = c.get('logger');
 

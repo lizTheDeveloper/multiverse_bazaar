@@ -82,11 +82,11 @@ export function authMiddleware(authService: AuthService) {
       return c.json(
         {
           error: {
-            code: result.error.code,
+            code: result.error.code || 'UNAUTHORIZED',
             message: result.error.message,
           },
         },
-        result.error.statusCode
+        result.error.statusCode || 401
       );
     }
 

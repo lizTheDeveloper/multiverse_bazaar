@@ -3,7 +3,7 @@
  * Handles all database operations related to projects.
  */
 
-import { PrismaClient, ProjectStatus, CollaboratorRole } from '@prisma/client';
+import { PrismaClient, Prisma, ProjectStatus, CollaboratorRole } from '@prisma/client';
 import { Result, Ok, Err, NotFoundError, InternalError } from '@multiverse-bazaar/shared';
 import {
   Project,
@@ -227,7 +227,7 @@ export class ProjectRepository {
       const limit = query.limit || 20;
 
       // Build where clause based on filters
-      const where: any = {};
+      const where: Prisma.ProjectWhereInput = {};
 
       if (query.status !== undefined) {
         where.status = query.status;

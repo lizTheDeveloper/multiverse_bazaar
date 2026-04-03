@@ -14,7 +14,7 @@ import {
 } from '@multiverse-bazaar/shared';
 import { ProjectStatus, IdeaStatus } from '@prisma/client';
 import { SearchRepository } from './repository.js';
-import { SearchQuery, SearchResponse } from './types.js';
+import { SearchQuery, SearchResponse, SearchResult } from './types.js';
 import { Logger } from '../../infra/logger.js';
 
 /**
@@ -108,7 +108,7 @@ export class SearchService {
 
       // Route to appropriate repository method based on type
       let searchResult: Result<
-        { results: any[]; total: number },
+        { results: SearchResult[]; total: number },
         BaseError
       >;
 

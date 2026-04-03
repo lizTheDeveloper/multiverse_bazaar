@@ -5,6 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { Result, Ok, Err, NotFoundError, InternalError } from '@multiverse-bazaar/shared';
+import { isPrismaNotFoundError, errorMessageIncludes, getErrorMessage } from '../../shared/prisma-errors.js';
 import { UserCollaboration, ProjectUpvoteCount } from './types.js';
 
 /**
@@ -120,9 +121,9 @@ export class KarmaRepository {
       });
 
       return Ok(undefined);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if it's a "record not found" error
-      if (error.code === 'P2025' || (error instanceof Error && error.message.includes('Record to update not found'))) {
+      if (isPrismaNotFoundError(error) || errorMessageIncludes(error, 'Record to update not found')) {
         return Err(new NotFoundError('User'));
       }
 
@@ -130,7 +131,7 @@ export class KarmaRepository {
         new InternalError('Failed to update user karma', {
           userId,
           karma,
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
         })
       );
     }

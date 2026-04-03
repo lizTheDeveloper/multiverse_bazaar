@@ -17,7 +17,7 @@ import {
   InternalError,
 } from '@multiverse-bazaar/shared';
 import { AuthRepository } from './repository.js';
-import { LoginResponse, RefreshResponse, TokenPayload, UserProfile } from './types.js';
+import { LoginResponse, RefreshResponse, MagicLinkResponse, TokenPayload, UserProfile } from './types.js';
 import { Config } from '../../infra/config.js';
 import { Logger } from '../../infra/logger.js';
 
@@ -33,6 +33,7 @@ const RATE_LIMIT_MAX_FAILED_BY_IP = 10;
  */
 const ACCESS_TOKEN_EXPIRY_SECONDS = 15 * 60; // 15 minutes
 const REFRESH_TOKEN_EXPIRY_SECONDS = 7 * 24 * 60 * 60; // 7 days
+const MAGIC_LINK_EXPIRY_SECONDS = 15 * 60; // 15 minutes
 
 /**
  * Service for authentication operations
@@ -132,7 +133,7 @@ export class AuthService {
 
       // Generate refresh token
       const refreshToken = this.generateRefreshToken();
-      const refreshTokenHash = await this.hashToken(refreshToken);
+      const refreshTokenHash = this.hashTokenForLookup(refreshToken);
 
       // Calculate refresh token expiration
       const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_SECONDS * 1000);
@@ -156,6 +157,7 @@ export class AuthService {
 
       return Ok({
         accessToken,
+        refreshToken,
         user,
       });
     } catch (error) {
@@ -213,7 +215,7 @@ export class AuthService {
 
       // Generate refresh token
       const refreshToken = this.generateRefreshToken();
-      const refreshTokenHash = await this.hashToken(refreshToken);
+      const refreshTokenHash = this.hashTokenForLookup(refreshToken);
 
       // Calculate refresh token expiration
       const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_SECONDS * 1000);
@@ -236,6 +238,7 @@ export class AuthService {
 
       return Ok({
         accessToken,
+        refreshToken,
         user,
       });
     } catch (error) {
@@ -250,6 +253,7 @@ export class AuthService {
 
   /**
    * Refresh an access token using a refresh token
+   * Implements refresh token rotation for security
    *
    * @param refreshToken - The refresh token
    * @returns Result with RefreshResponse or BaseError
@@ -257,7 +261,7 @@ export class AuthService {
   async refresh(refreshToken: string): Promise<Result<RefreshResponse, BaseError>> {
     try {
       // Hash the refresh token to look it up
-      const tokenHash = await this.hashToken(refreshToken);
+      const tokenHash = this.hashTokenForLookup(refreshToken);
 
       // Find the refresh token in database
       const tokenResult = await this.repository.findRefreshTokenByHash(tokenHash);
@@ -292,10 +296,33 @@ export class AuthService {
       // Generate new access token
       const accessToken = this.generateAccessToken(user);
 
-      this.logger.info({ userId: user.id }, 'Access token refreshed successfully');
+      // Rotate refresh token: revoke old one and create new one
+      await this.repository.revokeRefreshToken(storedToken.id);
+
+      // Generate new refresh token
+      const newRefreshToken = this.generateRefreshToken();
+      const newRefreshTokenHash = this.hashTokenForLookup(newRefreshToken);
+
+      // Calculate new refresh token expiration
+      const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_SECONDS * 1000);
+
+      // Store new refresh token in database
+      const storeResult = await this.repository.createRefreshToken(
+        user.id,
+        newRefreshTokenHash,
+        expiresAt
+      );
+
+      if (!isOk(storeResult)) {
+        return Err(storeResult.error);
+      }
+
+      this.logger.info({ userId: user.id }, 'Tokens refreshed successfully');
 
       return Ok({
         accessToken,
+        refreshToken: newRefreshToken,
+        user,
       });
     } catch (error) {
       this.logger.error({ error }, 'Unexpected error during token refresh');
@@ -328,6 +355,137 @@ export class AuthService {
       this.logger.error({ error, userId }, 'Unexpected error during logout');
       return Err(
         new InternalError('An unexpected error occurred during logout', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
+  }
+
+  /**
+   * Send a magic link to the user's email
+   * Creates a magic link token and stores it in the database
+   * In production, this would send an email with the magic link
+   *
+   * @param email - User's email address
+   * @returns Result with MagicLinkResponse or BaseError
+   */
+  async sendMagicLink(email: string): Promise<Result<MagicLinkResponse, BaseError>> {
+    try {
+      // Generate a random token
+      const token = crypto.randomBytes(32).toString('hex');
+
+      // Hash the token for storage using SHA-256 (deterministic for lookup)
+      const tokenHash = this.hashTokenForLookup(token);
+
+      // Calculate expiration
+      const expiresAt = new Date(Date.now() + MAGIC_LINK_EXPIRY_SECONDS * 1000);
+
+      // Store the token in the database
+      const storeResult = await this.repository.createMagicLinkToken(
+        email,
+        tokenHash,
+        expiresAt
+      );
+
+      if (!isOk(storeResult)) {
+        return Err(storeResult.error);
+      }
+
+      // In production, send an email with the magic link
+      // For now, log the token for testing purposes
+      this.logger.info({ email, token }, 'Magic link token generated (would be sent via email)');
+
+      return Ok({
+        message: 'If an account exists for this email, a magic link has been sent.',
+      });
+    } catch (error) {
+      this.logger.error({ error, email }, 'Unexpected error during magic link generation');
+      return Err(
+        new InternalError('An unexpected error occurred during magic link generation', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
+  }
+
+  /**
+   * Verify a magic link token and authenticate the user
+   * Creates a new user if they don't exist
+   *
+   * @param token - The magic link token
+   * @returns Result with LoginResponse or BaseError
+   */
+  async verifyMagicLink(token: string): Promise<Result<LoginResponse, BaseError>> {
+    try {
+      // Hash the token to look it up
+      const tokenHash = this.hashTokenForLookup(token);
+
+      // Find the token in database
+      const tokenResult = await this.repository.findMagicLinkTokenByHash(tokenHash);
+
+      if (!isOk(tokenResult)) {
+        this.logger.warn('Invalid magic link token provided');
+        return Err(new UnauthorizedError('Invalid or expired magic link'));
+      }
+
+      const storedToken = tokenResult.value;
+
+      // Check if token is already used
+      if (storedToken.usedAt !== null) {
+        this.logger.warn({ tokenId: storedToken.id }, 'Attempted to use already-used magic link');
+        return Err(new UnauthorizedError('Magic link has already been used'));
+      }
+
+      // Check if token is expired
+      if (storedToken.expiresAt < new Date()) {
+        this.logger.warn({ tokenId: storedToken.id }, 'Attempted to use expired magic link');
+        return Err(new UnauthorizedError('Magic link has expired'));
+      }
+
+      // Mark the token as used
+      await this.repository.markMagicLinkTokenUsed(storedToken.id);
+
+      // Find or create the user
+      const userResult = await this.repository.findOrCreateUserByEmail(storedToken.email);
+
+      if (!isOk(userResult)) {
+        return Err(userResult.error);
+      }
+
+      const user = userResult.value;
+
+      // Generate access token
+      const accessToken = this.generateAccessToken(user);
+
+      // Generate refresh token
+      const refreshToken = this.generateRefreshToken();
+      const refreshTokenHash = this.hashTokenForLookup(refreshToken);
+
+      // Calculate refresh token expiration
+      const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_SECONDS * 1000);
+
+      // Store refresh token in database
+      const storeResult = await this.repository.createRefreshToken(
+        user.id,
+        refreshTokenHash,
+        expiresAt
+      );
+
+      if (!isOk(storeResult)) {
+        return Err(storeResult.error);
+      }
+
+      this.logger.info({ userId: user.id, email: user.email }, 'User authenticated via magic link');
+
+      return Ok({
+        accessToken,
+        refreshToken,
+        user,
+      });
+    } catch (error) {
+      this.logger.error({ error }, 'Unexpected error during magic link verification');
+      return Err(
+        new InternalError('An unexpected error occurred during magic link verification', {
           error: error instanceof Error ? error.message : String(error),
         })
       );
@@ -403,6 +561,17 @@ export class AuthService {
   private async hashToken(token: string): Promise<string> {
     const saltRounds = 10;
     return bcrypt.hash(token, saltRounds);
+  }
+
+  /**
+   * Hash a token using SHA-256 for deterministic lookup
+   * Used for magic link tokens that need to be looked up by hash
+   *
+   * @param token - Token to hash
+   * @returns SHA-256 hash of the token
+   */
+  private hashTokenForLookup(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 
   /**

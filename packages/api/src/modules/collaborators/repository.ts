@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { Result, Ok, Err, NotFoundError, InternalError, ConflictError } from '@multiverse-bazaar/shared';
 import { Collaborator, PendingInvitation, CollaboratorRole, InvitationDetails } from './types.js';
 import { UserProfile } from '../auth/types.js';
+import { isPrismaNotFoundError, isPrismaUniqueConstraintError, getErrorMessage } from '../../shared/prisma-errors.js';
 
 /**
  * Repository for collaborator-related database operations
@@ -154,9 +155,9 @@ export class CollaboratorRepository {
       };
 
       return Ok(mapped);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check for unique constraint violation (user already a collaborator)
-      if (error.code === 'P2002') {
+      if (isPrismaUniqueConstraintError(error)) {
         return Err(new ConflictError('User is already a collaborator on this project'));
       }
 
@@ -165,7 +166,7 @@ export class CollaboratorRepository {
           projectId,
           userId,
           role,
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
         })
       );
     }
@@ -192,9 +193,9 @@ export class CollaboratorRepository {
       });
 
       return Ok(undefined);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check for record not found
-      if (error.code === 'P2025') {
+      if (isPrismaNotFoundError(error)) {
         return Err(new NotFoundError('Collaborator'));
       }
 
@@ -202,7 +203,7 @@ export class CollaboratorRepository {
         new InternalError('Failed to remove collaborator', {
           projectId,
           userId,
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
         })
       );
     }
@@ -417,14 +418,14 @@ export class CollaboratorRepository {
       });
 
       return Ok(undefined);
-    } catch (error: any) {
-      if (error.code === 'P2025') {
+    } catch (error: unknown) {
+      if (isPrismaNotFoundError(error)) {
         return Err(new NotFoundError('Invitation'));
       }
 
       return Err(
         new InternalError('Failed to accept invitation', {
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
         })
       );
     }
@@ -443,14 +444,14 @@ export class CollaboratorRepository {
       });
 
       return Ok(undefined);
-    } catch (error: any) {
-      if (error.code === 'P2025') {
+    } catch (error: unknown) {
+      if (isPrismaNotFoundError(error)) {
         return Err(new NotFoundError('Invitation'));
       }
 
       return Err(
         new InternalError('Failed to decline invitation', {
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
         })
       );
     }

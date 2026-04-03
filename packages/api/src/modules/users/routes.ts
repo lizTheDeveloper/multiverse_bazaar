@@ -4,6 +4,7 @@
  */
 
 import { Hono } from 'hono';
+import type { MiddlewareHandler } from 'hono';
 import { isOk } from '@multiverse-bazaar/shared';
 import { UserService } from './service.js';
 import {
@@ -38,7 +39,7 @@ interface UserContext {
  */
 export function createUserRoutes(
   userService: UserService,
-  authMiddleware: any
+  authMiddleware: MiddlewareHandler
 ): Hono<UserContext> {
   const router = new Hono<UserContext>();
 
@@ -130,7 +131,21 @@ export function createUserRoutes(
     }
 
     // Parse and validate request body
-    const body = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = updateUserSchema.safeParse(body);
 
     if (!validation.success) {
@@ -330,7 +345,14 @@ export function createUserRoutes(
 
       const statusCode = error.statusCode as 400 | 401 | 403 | 404 | 429 | 500;
 
-      const errorResponse: any = {
+      interface ErrorResponse {
+        code: string;
+        message: string;
+        details?: unknown;
+        fieldErrors?: Array<{ field: string; message: string }>;
+      }
+
+      const errorResponse: ErrorResponse = {
         code: error.code,
         message: error.message,
       };
@@ -340,7 +362,7 @@ export function createUserRoutes(
       }
 
       if ('fieldErrors' in error && error.fieldErrors) {
-        errorResponse.fieldErrors = error.fieldErrors;
+        errorResponse.fieldErrors = error.fieldErrors as Array<{ field: string; message: string }>;
       }
 
       return c.json(
@@ -475,7 +497,21 @@ export function createUserRoutes(
     }
 
     // Parse and validate request body
-    const body = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = privacySettingsSchema.safeParse(body);
 
     if (!validation.success) {
@@ -558,7 +594,21 @@ export function createUserRoutes(
     }
 
     // Parse and validate request body
-    const body = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = inviteExternalUserSchema.safeParse(body);
 
     if (!validation.success) {

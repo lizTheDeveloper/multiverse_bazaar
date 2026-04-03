@@ -3,7 +3,7 @@
  * Handles all database operations related to notifications and push tokens.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Result, Ok, Err, InternalError, NotFoundError } from '@multiverse-bazaar/shared';
 import {
   Notification,
@@ -14,6 +14,7 @@ import {
   Platform,
 } from './types.js';
 import { decodeCursor } from '../../shared/pagination.js';
+import { isPrismaNotFoundError, getErrorMessage } from '../../shared/prisma-errors.js';
 
 /**
  * Repository for notification-related database operations
@@ -112,7 +113,7 @@ export class NotificationRepository {
     try {
       const limit = query.limit || 20;
 
-      const where: any = {
+      const where: Prisma.NotificationWhereInput = {
         userId,
         ...(query.unreadOnly ? { read: false } : {}),
       };
@@ -190,15 +191,15 @@ export class NotificationRepository {
       });
 
       return Ok(undefined);
-    } catch (error: any) {
-      if (error.code === 'P2025') {
+    } catch (error: unknown) {
+      if (isPrismaNotFoundError(error)) {
         return Err(new NotFoundError('Notification'));
       }
 
       return Err(
         new InternalError('Failed to mark notification as read', {
           id,
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
         })
       );
     }
@@ -269,15 +270,15 @@ export class NotificationRepository {
       });
 
       return Ok(undefined);
-    } catch (error: any) {
-      if (error.code === 'P2025') {
+    } catch (error: unknown) {
+      if (isPrismaNotFoundError(error)) {
         return Err(new NotFoundError('Notification'));
       }
 
       return Err(
         new InternalError('Failed to delete notification', {
           id,
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
         })
       );
     }
@@ -444,14 +445,14 @@ export class PushTokenRepository {
       });
 
       return Ok(undefined);
-    } catch (error: any) {
-      if (error.code === 'P2025') {
+    } catch (error: unknown) {
+      if (isPrismaNotFoundError(error)) {
         return Err(new NotFoundError('Push token'));
       }
 
       return Err(
         new InternalError('Failed to delete push token', {
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
         })
       );
     }
@@ -472,14 +473,14 @@ export class PushTokenRepository {
       });
 
       return Ok(undefined);
-    } catch (error: any) {
-      if (error.code === 'P2025') {
+    } catch (error: unknown) {
+      if (isPrismaNotFoundError(error)) {
         return Err(new NotFoundError('Push token'));
       }
 
       return Err(
         new InternalError('Failed to update push token last used timestamp', {
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
         })
       );
     }

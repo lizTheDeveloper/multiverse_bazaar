@@ -3,7 +3,7 @@
  * Implements PostgreSQL full-text search for projects and ideas.
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { Result, Ok, Err, isOk, InternalError } from '@multiverse-bazaar/shared';
 import { ProjectSearchResult, IdeaSearchResult, SearchResult } from './types.js';
 
@@ -61,7 +61,7 @@ export class SearchRepository {
       const whereConditions: string[] = [
         "to_tsvector('english', title || ' ' || description) @@ plainto_tsquery('english', $1)",
       ];
-      const params: any[] = [sanitizedQuery];
+      const params: (string | number | boolean | null)[] = [sanitizedQuery];
       let paramIndex = 2;
 
       if (filters.status !== undefined) {
@@ -106,7 +106,7 @@ export class SearchRepository {
 
       params.push(limit, offset);
 
-      const projects = await this.db.$queryRaw<any[]>(Prisma.sql([projectsQuery], ...params));
+      const projects = await this.db.$queryRawUnsafe<any[]>(projectsQuery, ...params);
 
       // Count total matching results
       const countQuery = `
@@ -116,8 +116,8 @@ export class SearchRepository {
       `;
 
       const countParams = params.slice(0, paramIndex - 1); // Remove limit and offset
-      const countResult = await this.db.$queryRaw<[{ count: number }]>(
-        Prisma.sql([countQuery], ...countParams)
+      const countResult = await this.db.$queryRawUnsafe<[{ count: number }]>(
+        countQuery, ...countParams
       );
       const total = countResult[0]?.count || 0;
 
@@ -202,7 +202,7 @@ export class SearchRepository {
       const whereConditions: string[] = [
         "to_tsvector('english', title || ' ' || description || ' ' || \"lookingFor\") @@ plainto_tsquery('english', $1)",
       ];
-      const params: any[] = [sanitizedQuery];
+      const params: (string | number | boolean | null)[] = [sanitizedQuery];
       let paramIndex = 2;
 
       if (filters.status !== undefined) {
@@ -241,7 +241,7 @@ export class SearchRepository {
 
       params.push(limit, offset);
 
-      const ideas = await this.db.$queryRaw<any[]>(Prisma.sql([ideasQuery], ...params));
+      const ideas = await this.db.$queryRawUnsafe<any[]>(ideasQuery, ...params);
 
       // Count total matching results
       const countQuery = `
@@ -251,8 +251,8 @@ export class SearchRepository {
       `;
 
       const countParams = params.slice(0, paramIndex - 1); // Remove limit and offset
-      const countResult = await this.db.$queryRaw<[{ count: number }]>(
-        Prisma.sql([countQuery], ...countParams)
+      const countResult = await this.db.$queryRawUnsafe<[{ count: number }]>(
+        countQuery, ...countParams
       );
       const total = countResult[0]?.count || 0;
 

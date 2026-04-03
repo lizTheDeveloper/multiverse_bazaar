@@ -8,6 +8,7 @@ import type { Context, Next } from 'hono';
 import { Container } from './infra/container.js';
 import { Config } from './infra/config.js';
 import { Logger } from './infra/logger.js';
+import { getErrorResolver } from './infra/error-resolver.js';
 import { randomUUID } from 'crypto';
 
 // Import security middleware
@@ -71,7 +72,8 @@ function loggingMiddleware(logger: Logger) {
       await next();
     } finally {
       const duration = Date.now() - start;
-      const status = c.res.status;
+      // c.res.status might be undefined if response wasn't properly created
+      const status = c.res?.status ?? 'unknown';
 
       requestLogger.info('Request completed', {
         status,
@@ -83,8 +85,11 @@ function loggingMiddleware(logger: Logger) {
 
 /**
  * Middleware that catches errors and returns proper JSON responses.
+ * Also submits errors to the Autonomous Error Resolver for automatic fixing.
  */
 function errorHandlerMiddleware(logger: Logger) {
+  const errorResolver = getErrorResolver();
+
   return async (c: Context<{ Variables: Variables }>, next: Next): Promise<Response | void> => {
     try {
       await next();
@@ -97,6 +102,12 @@ function errorHandlerMiddleware(logger: Logger) {
         requestLogger.error(error, 'Unhandled error in request', {
           stack: error.stack,
         });
+
+        // Submit to Autonomous Error Resolver (for 5xx errors only)
+        const errorId = errorResolver.submitFromContext(error, c);
+        if (errorId) {
+          requestLogger.info(`Error submitted to resolver: ${errorId}`);
+        }
       } else {
         requestLogger.error('Unknown error type', {
           error: String(error),

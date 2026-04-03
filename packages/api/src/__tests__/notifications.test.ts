@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { getTestApp, getTestToken, createTestUser, getTestDb } from './setup.js';
+import type { NotificationResponse } from './types.js';
 
 describe('Notifications API', () => {
   describe('GET /api/v1/notifications', () => {
@@ -90,7 +91,7 @@ describe('Notifications API', () => {
 
       const data = await response.json();
       expect(data.total).toBe(1);
-      expect(data.notifications.every((n: any) => !n.read)).toBe(true);
+      expect(data.notifications.every((n: NotificationResponse) => !n.read)).toBe(true);
     });
 
     it('should only return notifications for authenticated user', async () => {

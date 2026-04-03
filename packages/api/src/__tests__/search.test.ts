@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { getTestApp, createTestUser, createTestProject, createTestIdea } from './setup.js';
+import type { SearchResultItem } from './types.js';
 
 describe('Search API', () => {
   describe('GET /api/v1/search', () => {
@@ -40,8 +41,8 @@ describe('Search API', () => {
       expect(data.total).toBeGreaterThanOrEqual(2);
 
       // Check that results include both types
-      const hasProject = data.results.some((r: any) => r.type === 'project');
-      const hasIdea = data.results.some((r: any) => r.type === 'idea');
+      const hasProject = data.results.some((r: SearchResultItem) => r.type === 'project');
+      const hasIdea = data.results.some((r: SearchResultItem) => r.type === 'idea');
       expect(hasProject).toBe(true);
       expect(hasIdea).toBe(true);
     });
@@ -68,7 +69,7 @@ describe('Search API', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data.results.every((r: any) => r.type === 'project')).toBe(true);
+      expect(data.results.every((r: SearchResultItem) => r.type === 'project')).toBe(true);
       expect(data.total).toBeGreaterThanOrEqual(1);
     });
 
@@ -94,7 +95,7 @@ describe('Search API', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data.results.every((r: any) => r.type === 'idea')).toBe(true);
+      expect(data.results.every((r: SearchResultItem) => r.type === 'idea')).toBe(true);
       expect(data.total).toBeGreaterThanOrEqual(1);
     });
 
@@ -187,7 +188,7 @@ describe('Search API', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data.results.every((r: any) => r.status === 'BUILDING')).toBe(true);
+      expect(data.results.every((r: SearchResultItem) => r.status === 'BUILDING')).toBe(true);
     });
 
     it('should filter ideas by status in search', async () => {
@@ -215,7 +216,7 @@ describe('Search API', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data.results.every((r: any) => r.status === 'OPEN')).toBe(true);
+      expect(data.results.every((r: SearchResultItem) => r.status === 'OPEN')).toBe(true);
     });
 
     it('should search in project titles', async () => {
@@ -235,7 +236,7 @@ describe('Search API', () => {
 
       const data = await response.json();
       expect(data.total).toBeGreaterThanOrEqual(1);
-      expect(data.results.some((r: any) => r.title.includes('Unique Title Keywords'))).toBe(true);
+      expect(data.results.some((r: SearchResultItem) => r.title.includes('Unique Title Keywords'))).toBe(true);
     });
 
     it('should search in project descriptions', async () => {
@@ -275,7 +276,7 @@ describe('Search API', () => {
 
       const data = await response.json();
       expect(data.total).toBeGreaterThanOrEqual(1);
-      expect(data.results.some((r: any) => r.title.includes('Revolutionary Concept'))).toBe(true);
+      expect(data.results.some((r: SearchResultItem) => r.title.includes('Revolutionary Concept'))).toBe(true);
     });
 
     it('should search in idea descriptions and lookingFor', async () => {

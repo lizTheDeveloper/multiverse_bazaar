@@ -157,7 +157,21 @@ export function createIdeaRoutes(
     }
 
     // Parse and validate request body
-    const body = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = createIdeaSchema.safeParse(body);
 
     if (!validation.success) {
@@ -289,7 +303,21 @@ export function createIdeaRoutes(
     }
 
     // Parse and validate request body
-    const body = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = updateIdeaSchema.safeParse(body);
 
     if (!validation.success) {
@@ -428,7 +456,21 @@ export function createIdeaRoutes(
     }
 
     // Parse and validate request body
-    const body = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = expressInterestSchema.safeParse(body);
 
     if (!validation.success) {
@@ -580,7 +622,21 @@ export function createIdeaRoutes(
     }
 
     // Parse and validate request body
-    const body = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = graduateIdeaSchema.safeParse(body);
 
     if (!validation.success) {

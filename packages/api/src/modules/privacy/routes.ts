@@ -201,7 +201,20 @@ export function createPrivacyRoutes(
     }
 
     // Parse request body
-    const body = await c.req.json().catch(() => ({}));
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
 
     // Default to anonymizing contributions if not specified
     const options: DeletionOptions = {
@@ -455,7 +468,20 @@ For privacy concerns, contact us at privacy@multiverse-bazaar.com`,
     }
 
     // Parse request body
-    const body = await c.req.json().catch(() => ({}));
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
 
     if (!body.consentType || typeof body.granted !== 'boolean') {
       return c.json(

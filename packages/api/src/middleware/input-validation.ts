@@ -13,6 +13,11 @@ import type { Logger } from '../infra/logger.js';
 export type ValidationTarget = 'body' | 'query' | 'param' | 'header';
 
 /**
+ * Keys used to store validated data in context.
+ */
+type ValidatedDataKey = 'validatedBody' | 'validatedQuery' | 'validatedParam' | 'validatedHeader';
+
+/**
  * HTML sanitization regex patterns.
  */
 const HTML_TAG_REGEX = /<[^>]*>/g;
@@ -62,21 +67,21 @@ function sanitizeHtml(value: string): string {
  * @param obj - Object to sanitize
  * @returns Sanitized object
  */
-function sanitizeObject(obj: any): any {
+function sanitizeObject<T>(obj: T): T {
   if (typeof obj === 'string') {
-    return sanitizeHtml(obj);
+    return sanitizeHtml(obj) as T;
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(sanitizeObject);
+    return obj.map(sanitizeObject) as T;
   }
 
   if (obj !== null && typeof obj === 'object') {
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       sanitized[key] = sanitizeObject(value);
     }
-    return sanitized;
+    return sanitized as T;
   }
 
   return obj;
@@ -181,7 +186,7 @@ export function createValidator<T extends ZodSchema>(
   schema: T
 ): MiddlewareHandler {
   return async (c: Context, next: Next): Promise<Response> => {
-    let data: any;
+    let data: unknown;
 
     // Extract data based on target
     try {
@@ -264,7 +269,7 @@ export function createValidator<T extends ZodSchema>(
     }
 
     // Store validated data in context
-    c.set(`validated${target.charAt(0).toUpperCase() + target.slice(1)}` as any, result.data);
+    c.set(`validated${target.charAt(0).toUpperCase() + target.slice(1)}` as ValidatedDataKey, result.data);
 
     await next();
     return c.res;

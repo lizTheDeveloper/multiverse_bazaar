@@ -3,7 +3,7 @@
  * Handles all database operations related to ideas.
  */
 
-import { PrismaClient, IdeaStatus } from '@prisma/client';
+import { PrismaClient, Prisma, IdeaStatus } from '@prisma/client';
 import { Result, Ok, Err, NotFoundError, InternalError } from '@multiverse-bazaar/shared';
 import {
   Idea,
@@ -255,7 +255,7 @@ export class IdeaRepository {
       const limit = query.limit || 20;
 
       // Build where clause based on filters
-      const where: any = {};
+      const where: Prisma.IdeaWhereInput = {};
 
       if (query.status !== undefined) {
         where.status = query.status;

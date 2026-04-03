@@ -268,16 +268,18 @@ export class UserRepository {
         },
       });
 
-      const projects: UserProject[] = collaborations.map((collab) => ({
-        id: collab.project.id,
-        title: collab.project.title,
-        description: collab.project.description,
-        url: collab.project.url,
-        imageUrl: collab.project.imageUrl,
-        status: collab.project.status,
-        role: collab.role,
-        createdAt: collab.project.createdAt,
-      }));
+      const projects: UserProject[] = collaborations
+        .filter((collab) => collab.project !== null)
+        .map((collab) => ({
+          id: collab.project.id,
+          title: collab.project.title,
+          description: collab.project.description,
+          url: collab.project.url,
+          imageUrl: collab.project.imageUrl,
+          status: collab.project.status,
+          role: collab.role,
+          createdAt: collab.project.createdAt,
+        }));
 
       return Ok(projects);
     } catch (error) {

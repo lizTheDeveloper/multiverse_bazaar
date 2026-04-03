@@ -16,6 +16,7 @@ import {
 } from '@multiverse-bazaar/shared';
 import { IdeaStatus, ProjectStatus, CollaboratorRole } from '@prisma/client';
 import { IdeaRepository } from './repository.js';
+import { ProjectRepository } from '../projects/repository.js';
 import {
   IdeaWithCreator,
   IdeaWithInterests,
@@ -36,6 +37,7 @@ import { createPaginatedResponse } from '../../shared/pagination.js';
 export class IdeaService {
   constructor(
     private readonly repository: IdeaRepository,
+    private readonly projectRepository: ProjectRepository,
     private readonly logger: Logger
   ) {}
 
@@ -521,19 +523,27 @@ export class IdeaService {
         // For now, we'll trust the projectId
         this.logger.info({ userId, ideaId, projectId }, 'Linking to existing project');
       } else {
-        // Auto-create a new project
-        // TODO: Implement project creation
-        // For now, this is a placeholder - the actual implementation would require
-        // access to ProjectRepository or ProjectService
-        this.logger.warn(
-          { userId, ideaId },
-          'Auto-create project not yet implemented - requires projectId'
+        // Auto-create a new project from the idea
+        this.logger.info({ userId, ideaId }, 'Auto-creating project from idea');
+
+        const createProjectResult = await this.projectRepository.create(
+          {
+            title: idea.title,
+            description: idea.description,
+          },
+          userId
         );
-        return Err(
-          new InternalError('Auto-create project feature not yet implemented', {
-            message: 'Please provide a projectId to graduate the idea',
-          })
-        );
+
+        if (!isOk(createProjectResult)) {
+          this.logger.error(
+            { userId, ideaId, error: createProjectResult.error.message },
+            'Failed to auto-create project from idea'
+          );
+          return Err(createProjectResult.error);
+        }
+
+        projectId = createProjectResult.value.id;
+        this.logger.info({ userId, ideaId, projectId }, 'Auto-created project from idea');
       }
 
       // Graduate the idea

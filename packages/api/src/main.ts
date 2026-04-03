@@ -6,7 +6,9 @@
 
 import 'dotenv/config';
 import { serve } from '@hono/node-server';
+import type { ServerType } from '@hono/node-server';
 import { setupContainer } from './infra/container.js';
+import type { Container } from './infra/container.js';
 import { configureApp } from './app.js';
 import { connect, disconnect } from './infra/database.js';
 import { Config } from './infra/config.js';
@@ -17,8 +19,8 @@ import { Logger } from './infra/logger.js';
  * Sets up dependencies and starts the server.
  */
 async function main(): Promise<void> {
-  let server: any = null;
-  let container: any = null;
+  let server: ServerType | null = null;
+  let container: Container | null = null;
 
   try {
     // Set up the dependency injection container
@@ -105,15 +107,18 @@ async function main(): Promise<void> {
 
   } catch (error) {
     // Use logger if available, otherwise fall back to console
+    console.error('Failed to start application:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     try {
       const errorLogger = container?.resolve<Logger>('logger');
       if (errorLogger) {
         errorLogger.error('Failed to start application', { error });
-      } else {
-        console.error('Failed to start application:', error);
       }
     } catch {
-      console.error('Failed to start application:', error);
+      // Ignore logger errors
     }
 
     // Clean up on startup failure

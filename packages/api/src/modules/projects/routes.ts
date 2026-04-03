@@ -156,7 +156,21 @@ export function createProjectRoutes(
     }
 
     // Parse and validate request body
-    const body = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = createProjectSchema.safeParse(body);
 
     if (!validation.success) {
@@ -294,7 +308,21 @@ export function createProjectRoutes(
     }
 
     // Parse and validate request body
-    const body = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (error) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid JSON in request body',
+          },
+        },
+        400
+      );
+    }
+
     const validation = updateProjectSchema.safeParse(body);
 
     if (!validation.success) {

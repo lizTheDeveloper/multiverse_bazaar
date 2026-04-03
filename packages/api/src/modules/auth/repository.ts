@@ -332,4 +332,139 @@ export class AuthRepository {
       }));
     }
   }
+
+  /**
+   * Create a magic link token record in the database
+   * @param email - Email address to send the magic link to
+   * @param tokenHash - Hashed magic link token
+   * @param expiresAt - Token expiration date
+   * @returns Result with token ID or InternalError
+   */
+  async createMagicLinkToken(
+    email: string,
+    tokenHash: string,
+    expiresAt: Date
+  ): Promise<Result<string, InternalError>> {
+    try {
+      const token = await this.db.magicLinkToken.create({
+        data: {
+          email,
+          tokenHash,
+          expiresAt,
+        },
+      });
+
+      return Ok(token.id);
+    } catch (error) {
+      return Err(new InternalError('Failed to create magic link token', {
+        email,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
+
+  /**
+   * Find a magic link token by its hash
+   * @param tokenHash - Token hash to look up
+   * @returns Result with token data or NotFoundError
+   */
+  async findMagicLinkTokenByHash(tokenHash: string): Promise<
+    Result<
+      { id: string; email: string; expiresAt: Date; usedAt: Date | null },
+      NotFoundError | InternalError
+    >
+  > {
+    try {
+      const token = await this.db.magicLinkToken.findUnique({
+        where: { tokenHash },
+        select: {
+          id: true,
+          email: true,
+          expiresAt: true,
+          usedAt: true,
+        },
+      });
+
+      if (!token) {
+        return Err(new NotFoundError('Magic link token'));
+      }
+
+      return Ok(token);
+    } catch (error) {
+      return Err(new InternalError('Failed to find magic link token', {
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
+
+  /**
+   * Mark a magic link token as used
+   * @param id - Token ID to mark as used
+   * @returns Result with void or InternalError
+   */
+  async markMagicLinkTokenUsed(id: string): Promise<Result<void, InternalError>> {
+    try {
+      await this.db.magicLinkToken.update({
+        where: { id },
+        data: { usedAt: new Date() },
+      });
+
+      return Ok(undefined);
+    } catch (error) {
+      return Err(new InternalError('Failed to mark magic link token as used', {
+        tokenId: id,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
+
+  /**
+   * Create or update a user by email (for magic link authentication)
+   * @param email - User's email address
+   * @returns Result with user or InternalError
+   */
+  async findOrCreateUserByEmail(email: string): Promise<Result<UserProfile, InternalError>> {
+    try {
+      // Try to find existing user
+      const existingUser = await this.db.user.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatarUrl: true,
+          bio: true,
+          karma: true,
+          createdAt: true,
+        },
+      });
+
+      if (existingUser) {
+        return Ok(existingUser);
+      }
+
+      // Create new user if not found
+      const newUser = await this.db.user.create({
+        data: {
+          email,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatarUrl: true,
+          bio: true,
+          karma: true,
+          createdAt: true,
+        },
+      });
+
+      return Ok(newUser);
+    } catch (error) {
+      return Err(new InternalError('Failed to find or create user', {
+        email,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
 }

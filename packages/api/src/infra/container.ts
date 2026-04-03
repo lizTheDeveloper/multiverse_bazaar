@@ -5,6 +5,35 @@
 
 import { Config, getConfig } from './config.js';
 import { Logger, getLogger } from './logger.js';
+import { getPrismaClient } from './database.js';
+
+// Repository imports
+import { AuthRepository } from '../modules/auth/repository.js';
+import { UserRepository } from '../modules/users/repository.js';
+import { ProjectRepository } from '../modules/projects/repository.js';
+import { CollaboratorRepository } from '../modules/collaborators/repository.js';
+import { UpvoteRepository } from '../modules/upvotes/repository.js';
+import { IdeaRepository } from '../modules/ideas/repository.js';
+import { NotificationRepository, PushTokenRepository } from '../modules/notifications/repository.js';
+import { SearchRepository } from '../modules/search/repository.js';
+import { UploadRepository } from '../modules/uploads/repository.js';
+import { AuditRepository } from '../modules/audit/repository.js';
+import { PrivacyRepository } from '../modules/privacy/repository.js';
+import { KarmaRepository } from '../modules/karma/repository.js';
+
+// Service imports
+import { AuthService } from '../modules/auth/service.js';
+import { UserService } from '../modules/users/service.js';
+import { ProjectService } from '../modules/projects/service.js';
+import { CollaboratorService } from '../modules/collaborators/service.js';
+import { UpvoteService } from '../modules/upvotes/service.js';
+import { IdeaService } from '../modules/ideas/service.js';
+import { NotificationService } from '../modules/notifications/service.js';
+import { SearchService } from '../modules/search/service.js';
+import { UploadService } from '../modules/uploads/service.js';
+import { AuditService } from '../modules/audit/service.js';
+import { PrivacyService } from '../modules/privacy/service.js';
+import { KarmaService } from '../modules/karma/service.js';
 
 /**
  * Lifetime of a dependency in the container.
@@ -163,7 +192,6 @@ export function setupContainer(): Container {
   container.register(
     'db',
     () => {
-      const { getPrismaClient } = require('./database.js');
       return getPrismaClient();
     },
     'singleton'
@@ -173,7 +201,6 @@ export function setupContainer(): Container {
   container.register(
     'authRepository',
     (c) => {
-      const { AuthRepository } = require('../modules/auth/repository.js');
       const db = c.resolve('db');
       return new AuthRepository(db);
     },
@@ -183,7 +210,6 @@ export function setupContainer(): Container {
   container.register(
     'userRepository',
     (c) => {
-      const { UserRepository } = require('../modules/users/repository.js');
       const db = c.resolve('db');
       return new UserRepository(db);
     },
@@ -193,7 +219,6 @@ export function setupContainer(): Container {
   container.register(
     'projectRepository',
     (c) => {
-      const { ProjectRepository } = require('../modules/projects/repository.js');
       const db = c.resolve('db');
       return new ProjectRepository(db);
     },
@@ -203,7 +228,6 @@ export function setupContainer(): Container {
   container.register(
     'collaboratorRepository',
     (c) => {
-      const { CollaboratorRepository } = require('../modules/collaborators/repository.js');
       const db = c.resolve('db');
       return new CollaboratorRepository(db);
     },
@@ -213,7 +237,6 @@ export function setupContainer(): Container {
   container.register(
     'upvoteRepository',
     (c) => {
-      const { UpvoteRepository } = require('../modules/upvotes/repository.js');
       const db = c.resolve('db');
       return new UpvoteRepository(db);
     },
@@ -223,7 +246,6 @@ export function setupContainer(): Container {
   container.register(
     'ideaRepository',
     (c) => {
-      const { IdeaRepository } = require('../modules/ideas/repository.js');
       const db = c.resolve('db');
       return new IdeaRepository(db);
     },
@@ -233,7 +255,6 @@ export function setupContainer(): Container {
   container.register(
     'notificationRepository',
     (c) => {
-      const { NotificationRepository } = require('../modules/notifications/repository.js');
       const db = c.resolve('db');
       return new NotificationRepository(db);
     },
@@ -243,7 +264,6 @@ export function setupContainer(): Container {
   container.register(
     'pushTokenRepository',
     (c) => {
-      const { PushTokenRepository } = require('../modules/notifications/repository.js');
       const db = c.resolve('db');
       return new PushTokenRepository(db);
     },
@@ -253,7 +273,6 @@ export function setupContainer(): Container {
   container.register(
     'searchRepository',
     (c) => {
-      const { SearchRepository } = require('../modules/search/repository.js');
       const db = c.resolve('db');
       return new SearchRepository(db);
     },
@@ -263,7 +282,6 @@ export function setupContainer(): Container {
   container.register(
     'uploadRepository',
     (c) => {
-      const { UploadRepository } = require('../modules/uploads/repository.js');
       const db = c.resolve('db');
       return new UploadRepository(db);
     },
@@ -273,7 +291,6 @@ export function setupContainer(): Container {
   container.register(
     'auditRepository',
     (c) => {
-      const { AuditRepository } = require('../modules/audit/repository.js');
       const db = c.resolve('db');
       return new AuditRepository(db);
     },
@@ -283,7 +300,6 @@ export function setupContainer(): Container {
   container.register(
     'privacyRepository',
     (c) => {
-      const { PrivacyRepository } = require('../modules/privacy/repository.js');
       const db = c.resolve('db');
       return new PrivacyRepository(db);
     },
@@ -293,7 +309,6 @@ export function setupContainer(): Container {
   container.register(
     'karmaRepository',
     (c) => {
-      const { KarmaRepository } = require('../modules/karma/repository.js');
       const db = c.resolve('db');
       return new KarmaRepository(db);
     },
@@ -304,11 +319,10 @@ export function setupContainer(): Container {
   container.register(
     'authService',
     (c) => {
-      const { AuthService } = require('../modules/auth/service.js');
       const authRepository = c.resolve('authRepository');
-      const logger = c.resolve<Logger>('logger');
       const config = c.resolve<Config>('config');
-      return new AuthService(authRepository, logger, config);
+      const logger = c.resolve<Logger>('logger');
+      return new AuthService(authRepository, config, logger);
     },
     'singleton'
   );
@@ -316,7 +330,6 @@ export function setupContainer(): Container {
   container.register(
     'userService',
     (c) => {
-      const { UserService } = require('../modules/users/service.js');
       const userRepository = c.resolve('userRepository');
       const logger = c.resolve<Logger>('logger');
       const uploadService = c.resolve('uploadService');
@@ -328,11 +341,9 @@ export function setupContainer(): Container {
   container.register(
     'projectService',
     (c) => {
-      const { ProjectService } = require('../modules/projects/service.js');
       const projectRepository = c.resolve('projectRepository');
-      const collaboratorRepository = c.resolve('collaboratorRepository');
       const logger = c.resolve<Logger>('logger');
-      return new ProjectService(projectRepository, collaboratorRepository, logger);
+      return new ProjectService(projectRepository, logger);
     },
     'singleton'
   );
@@ -340,7 +351,6 @@ export function setupContainer(): Container {
   container.register(
     'collaboratorService',
     (c) => {
-      const { CollaboratorService } = require('../modules/collaborators/service.js');
       const collaboratorRepository = c.resolve('collaboratorRepository');
       const projectRepository = c.resolve('projectRepository');
       const userRepository = c.resolve('userRepository');
@@ -360,7 +370,6 @@ export function setupContainer(): Container {
   container.register(
     'upvoteService',
     (c) => {
-      const { UpvoteService } = require('../modules/upvotes/service.js');
       const upvoteRepository = c.resolve('upvoteRepository');
       const projectRepository = c.resolve('projectRepository');
       const notificationService = c.resolve('notificationService');
@@ -380,17 +389,10 @@ export function setupContainer(): Container {
   container.register(
     'ideaService',
     (c) => {
-      const { IdeaService } = require('../modules/ideas/service.js');
       const ideaRepository = c.resolve('ideaRepository');
       const projectRepository = c.resolve('projectRepository');
-      const notificationService = c.resolve('notificationService');
       const logger = c.resolve<Logger>('logger');
-      return new IdeaService(
-        ideaRepository,
-        projectRepository,
-        notificationService,
-        logger
-      );
+      return new IdeaService(ideaRepository, projectRepository, logger);
     },
     'singleton'
   );
@@ -398,7 +400,6 @@ export function setupContainer(): Container {
   container.register(
     'notificationService',
     (c) => {
-      const { NotificationService } = require('../modules/notifications/service.js');
       const notificationRepository = c.resolve('notificationRepository');
       const pushTokenRepository = c.resolve('pushTokenRepository');
       const logger = c.resolve<Logger>('logger');
@@ -410,7 +411,6 @@ export function setupContainer(): Container {
   container.register(
     'searchService',
     (c) => {
-      const { SearchService } = require('../modules/search/service.js');
       const searchRepository = c.resolve('searchRepository');
       const logger = c.resolve<Logger>('logger');
       return new SearchService(searchRepository, logger);
@@ -421,7 +421,6 @@ export function setupContainer(): Container {
   container.register(
     'uploadService',
     (c) => {
-      const { UploadService } = require('../modules/uploads/service.js');
       const uploadRepository = c.resolve('uploadRepository');
       const config = c.resolve<Config>('config');
       // Construct base URL - in production this should come from environment
@@ -434,7 +433,6 @@ export function setupContainer(): Container {
   container.register(
     'auditService',
     (c) => {
-      const { AuditService } = require('../modules/audit/service.js');
       const auditRepository = c.resolve('auditRepository');
       const logger = c.resolve<Logger>('logger');
       return new AuditService(auditRepository, logger);
@@ -445,7 +443,6 @@ export function setupContainer(): Container {
   container.register(
     'privacyService',
     (c) => {
-      const { PrivacyService } = require('../modules/privacy/service.js');
       const privacyRepository = c.resolve('privacyRepository');
       const userRepository = c.resolve('userRepository');
       const logger = c.resolve<Logger>('logger');
@@ -457,7 +454,6 @@ export function setupContainer(): Container {
   container.register(
     'karmaService',
     (c) => {
-      const { KarmaService } = require('../modules/karma/service.js');
       const karmaRepository = c.resolve('karmaRepository');
       const logger = c.resolve<Logger>('logger');
       return new KarmaService(karmaRepository, logger);
