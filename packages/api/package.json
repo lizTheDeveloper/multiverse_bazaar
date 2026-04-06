@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@google-cloud/secret-manager": "5.6.0",
-    "@hono/node-server": "1.19.9",
+    "@hono/node-server": "1.19.10",
     "@hono/zod-validator": "0.7.6",
     "@prisma/adapter-pg": "7.3.0",
     "@prisma/client": "7.3.0",
@@ -31,7 +31,7 @@
     "@types/jsonwebtoken": "9.0.10",
     "bcryptjs": "3.0.3",
     "dotenv": "16.4.7",
-    "hono": "4.11.8",
+    "hono": "4.12.7",
     "jsonwebtoken": "9.0.3",
     "node-cron": "3.0.3",
     "pg": "8.18.0",
@@ -46,7 +46,7 @@
     "@types/node-cron": "3.0.11",
     "prisma": "7.3.0",
     "typescript": "5.7.2",
-    "vitest": "2.1.8"
+    "vitest": "2.1.9"
   },
   "engines": {
     "node": ">=20.0.0"
