@@ -18,7 +18,9 @@ COPY package.json package-lock.json ./
 COPY packages/shared/ ./packages/shared/
 COPY packages/web/ ./packages/web/
 
+ARG VITE_API_URL=/api/v1
 ENV NODE_ENV=production
+ENV VITE_API_URL=$VITE_API_URL
 # Skip tsc type checking, run vite build directly
 RUN npx --workspace=web vite build
 

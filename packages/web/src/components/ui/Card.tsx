@@ -25,8 +25,8 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden',
-          clickable && 'cursor-pointer transition-all hover:shadow-md hover:border-gray-300',
+          'bg-card text-card-foreground border border-border shadow-sm overflow-hidden',
+          clickable && 'cursor-pointer transition-all hover:shadow-md hover:border-primary/50',
           className
         )}
         role={clickable ? 'button' : undefined}
@@ -46,7 +46,7 @@ export const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
     return (
       <div
         ref={ref}
-        className={cn('px-6 py-4 border-b border-gray-200', className)}
+        className={cn('px-6 py-4 border-b border-border', className)}
         {...props}
       >
         {children}
@@ -74,7 +74,7 @@ export const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
     return (
       <div
         ref={ref}
-        className={cn('px-6 py-4 border-t border-gray-200 bg-gray-50', className)}
+        className={cn('px-6 py-4 border-t border-border bg-muted', className)}
         {...props}
       >
         {children}
