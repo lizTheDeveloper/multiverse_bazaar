@@ -68,20 +68,20 @@ const Modal: React.FC<ModalProps> = ({
       {/* Modal */}
       <div
         className={cn(
-          'relative bg-white rounded-lg shadow-xl w-full',
+          'relative bg-card text-card-foreground shadow-xl w-full',
           sizeStyles[size],
           'max-h-[90vh] flex flex-col'
         )}
       >
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h2 id="modal-title" className="text-xl font-semibold text-gray-900">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <h2 id="modal-title" className="text-xl font-semibold text-foreground">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+              className="text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring rounded"
               aria-label="Close modal"
             >
               <svg
@@ -104,7 +104,7 @@ const Modal: React.FC<ModalProps> = ({
 
         {/* Actions */}
         {actions && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted">
             {actions}
           </div>
         )}

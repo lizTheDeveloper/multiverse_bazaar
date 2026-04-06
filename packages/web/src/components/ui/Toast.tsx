@@ -38,10 +38,10 @@ const Toast: React.FC<ToastProps> = ({
   };
 
   const variantStyles = {
-    success: 'bg-green-50 border-green-500 text-green-800',
-    error: 'bg-red-50 border-red-500 text-red-800',
-    info: 'bg-blue-50 border-blue-500 text-blue-800',
-    warning: 'bg-yellow-50 border-yellow-500 text-yellow-800',
+    success: 'bg-card border-primary text-primary',
+    error: 'bg-card border-destructive text-destructive',
+    info: 'bg-card border-accent text-accent',
+    warning: 'bg-card border-yellow-500 text-yellow-400',
   };
 
   const iconStyles = {
@@ -106,7 +106,7 @@ const Toast: React.FC<ToastProps> = ({
         </div>
         <button
           onClick={handleClose}
-          className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded"
+          className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring rounded"
           aria-label="Close notification"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
